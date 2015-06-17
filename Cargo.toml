@@ -1,0 +1,5 @@
+[package]
+name = "cudd-sys"
+version = "0.1.0"
+authors = ["Philip Lewis <pcl@pclewis.com>"]
+build = "build.rs"
