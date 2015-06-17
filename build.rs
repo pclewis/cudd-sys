@@ -37,6 +37,7 @@ fn run_command( cmd: &mut Command ) -> Result<(String, String), FetchError>
         return Ok( (String::from_utf8(output.stdout).unwrap(),
                     String::from_utf8(output.stderr).unwrap()) );
     } else {
+	println!( "Command {:?} exited with status {}", cmd, output.status );
         return Err( FetchError::CommandError( output.status ) );
     }
 }
