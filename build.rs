@@ -2,7 +2,8 @@
 use std::process::Command;
 use std::env;
 use std::fs;
-//use std::fs::File;
+use std::io::{BufReader,BufWriter,BufRead,Write};
+use std::fs::File;
 use std::path::{Path,PathBuf};
 
 const PACKAGE_URL:&'static str = "ftp://vlsi.colorado.edu/pub/cudd-2.5.1.tar.gz";
@@ -82,6 +83,34 @@ fn fetch_package(out_dir: &str, url: &str, md5: &str) -> Result<(PathBuf, MD5Sta
 
 }
 
+fn replace_line( path: &Path, original: &str, replacement: &str ) -> Result< u32, std::io::Error >
+{
+    let mut lines_replaced = 0;
+    let new_path = path.with_extension(".new");
+
+    {
+        let f_in = try!(File::open(&path));
+        let f_out = try!(File::create(&new_path));
+        let reader = BufReader::new(&f_in);
+        let mut writer = BufWriter::new(&f_out);
+
+        for line in reader.lines() {
+            let line = line.unwrap();
+            if line.starts_with(&original) {
+                try!(writeln!(writer, "{}", replacement));
+                lines_replaced += 1;
+            } else {
+                try!(writeln!(writer, "{}", line));
+            }
+        }
+    }
+
+    try!( fs::remove_file(&path) );
+    try!( fs::rename(&new_path, &path) );
+
+    return Ok( lines_replaced );
+}
+
 fn main() {
     let out_dir = env::var("OUT_DIR").unwrap();
 
@@ -99,9 +128,12 @@ fn main() {
     run_command( Command::new("tar").args(&["xf", tar_path.to_str().unwrap(), "-C", &out_dir]) ).unwrap();
 
     // Patch Makefile.. need  -fPIC in ICFLAGS
-    // HACK HACK HACK HACK HACK
-    run_command( Command::new("sed").args(&["-i", "s/ICFLAGS\t= -g -O3/ICFLAGS\t= -g -O3 -fPIC/",
-                                            untarred_path.join("Makefile").to_str().unwrap()]) ).unwrap();
+    let lines_replaced = replace_line( &untarred_path.join("Makefile"),
+                                       "ICFLAGS\t= -g -O3",
+                                       "ICFLAGS\t= -g -O3 -fPIC" ).unwrap();
+    if lines_replaced != 1 {
+        panic!("Replaced {} lines in Makefile, expected 1", lines_replaced);
+    }
 
     // build libraries (execute make)
     run_command( Command::new("make").current_dir(&untarred_path) ).unwrap();
