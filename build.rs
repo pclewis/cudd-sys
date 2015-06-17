@@ -84,7 +84,7 @@ fn fetch_package(out_dir: &str, url: &str, md5: &str) -> Result<(PathBuf, MD5Sta
 
 }
 
-fn replace_line( path: &Path, original: &str, replacement: &str ) -> Result< u32, std::io::Error >
+fn replace_lines( path: &Path, replacements: Vec<(&str,&str)> ) -> Result< u32, std::io::Error >
 {
     let mut lines_replaced = 0;
     let new_path = path.with_extension(".new");
@@ -95,14 +95,16 @@ fn replace_line( path: &Path, original: &str, replacement: &str ) -> Result< u32
         let reader = BufReader::new(&f_in);
         let mut writer = BufWriter::new(&f_out);
 
-        for line in reader.lines() {
+        'read: for line in reader.lines() {
             let line = line.unwrap();
-            if line.starts_with(&original) {
-                try!(writeln!(writer, "{}", replacement));
-                lines_replaced += 1;
-            } else {
-                try!(writeln!(writer, "{}", line));
+            for &(original, replacement) in &replacements {
+                if line.starts_with(&original) {
+                    try!(writeln!(writer, "{}", replacement));
+                    lines_replaced += 1;
+                    continue 'read;
+                }
             }
+            try!(writeln!(writer, "{}", line));
         }
     }
 
@@ -128,11 +130,16 @@ fn main() {
     // untar package
     run_command( Command::new("tar").args(&["xf", tar_path.to_str().unwrap(), "-C", &out_dir]) ).unwrap();
 
-    // Patch Makefile.. need  -fPIC in ICFLAGS
-    let lines_replaced = replace_line( &untarred_path.join("Makefile"),
-                                       "ICFLAGS\t= -g -O3",
-                                       "ICFLAGS\t= -g -O3 -fPIC" ).unwrap();
-    if lines_replaced != 1 {
+    // patch Makefile
+    let lines_replaced = replace_lines(
+        &untarred_path.join("Makefile"),
+        vec!(// need PIC so our rust lib can be dynamically linked
+            ("ICFLAGS\t= -g -O3",
+             "ICFLAGS\t= -g -O3 -fPIC"),
+            // remove "nanotrav" from DIRS, it doesn't compile on OSX
+            ("DIRS\t= $(BDIRS)", // (matches prefix)
+             "DIRS\t= $(BDIRS)"))).unwrap();
+    if lines_replaced != 2 {
         panic!("Replaced {} lines in Makefile, expected 1", lines_replaced);
     }
 
