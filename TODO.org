@@ -1,5 +1,0 @@
-* TODO cudd-sys package
-  - [X] Use run_command
-  - [X] test md5 checking
-  - [X] Bindings
-    - [X] Script to do this

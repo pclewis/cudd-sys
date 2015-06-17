@@ -74,7 +74,8 @@ fn fetch_package(out_dir: &str, url: &str, md5: &str) -> Result<(PathBuf, MD5Sta
         match md5_result {
             Err( _ ) => MD5Status::Unknown,
             Ok( (out,_) ) => {
-                if out.starts_with(md5) { MD5Status::Match }
+                // md5sum outputs "<md5> <file>", md5 on OSX outputs "MD5 (<file>) = <md5>"
+                if out.contains(md5) { MD5Status::Match }
                 else { MD5Status::Mismatch }
             }
         }));
