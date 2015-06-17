@@ -3,6 +3,9 @@ name = "cudd-sys"
 version = "0.1.0"
 authors = ["Philip Lewis <pcl@pclewis.com>"]
 build = "build.rs"
+description = "Bindings for CU Decision Diagram library (CUDD)"
+repository = "https://github.com/pclewis/cudd-sys"
+license = "CC0-1.0"
 
 [dependencies]
 libc = "*"
