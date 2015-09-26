@@ -5,7 +5,6 @@ use libc::{c_void,c_uint,c_long,c_ulong,c_int,c_char,c_double,FILE};
 pub static CUDD_TRUE: c_uint = 1;
 pub static CUDD_FALSE: c_uint = 0;
 
-#[repr(C)]
 pub type CUDD_VALUE_TYPE = c_double;
 
 pub static CUDD_OUT_OF_MEM: c_int = -1;
