@@ -6,8 +6,8 @@ use std::io::{BufReader,BufWriter,BufRead,Write};
 use std::fs::File;
 use std::path::{Path,PathBuf};
 
-const PACKAGE_URL:&'static str = "ftp://vlsi.colorado.edu/pub/cudd-2.5.1.tar.gz";
-const PACKAGE_MD5:&'static str = "e2a514c2d309feab6b697195b7615b8b";
+const PACKAGE_URL:&'static str = "https://github.com/ivmai/cudd/archive/refs/tags/cudd-2.5.1.tar.gz";
+const PACKAGE_MD5:&'static str = "42283a52ff815c5ca8231b6927318fbf";
 
 #[derive(Debug)]
 enum FetchError {
@@ -60,7 +60,7 @@ fn fetch_package(out_dir: &str, url: &str, md5: &str) -> Result<(PathBuf, MD5Sta
             Err(e) => {
                 if e.kind() == std::io::ErrorKind::NotFound {
                     println!("Downloading {} to {}", url, target_path_str);
-                    try!(run_command( &mut Command::new("curl").args(&[url, "-o", target_path_str]) ));
+                    try!(run_command( &mut Command::new("curl").args(&["-L", url, "-o", target_path_str]) ));
                 } else {
                     return Err( FetchError::IOError(e) );
                 }
@@ -125,10 +125,14 @@ fn main() {
         MD5Status::Mismatch => panic!( "MD5 mismatch on package" )
     }
 
-    let untarred_path = tar_path.with_extension("").with_extension(""); // kill .tar and .gz
-
-    // untar package
-    run_command( Command::new("tar").args(&["xf", tar_path.to_str().unwrap(), "-C", &out_dir]) ).unwrap();
+    let untarred_path = tar_path.with_extension("").with_extension(""); // kill .tar and .gz    
+    if !untarred_path.exists() { // Create the destination directory.
+        std::fs::create_dir_all(untarred_path.clone()).unwrap();
+    }
+        
+    // untar package, ignoring the name of the top level folder, dumping into untarred_path instead.
+    let untarred_path_str = untarred_path.clone().into_os_string().into_string().unwrap();    
+    run_command( Command::new("tar").args(&["xf", tar_path.to_str().unwrap(), "--strip-components=1", "-C", &untarred_path_str]) ).unwrap();
 
     // patch Makefile
     let lines_replaced = replace_lines(
