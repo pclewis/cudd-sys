@@ -31,14 +31,14 @@ impl From<std::io::Error> for FetchError {
 /// Run a command and return (stdout, stderr) if exit status is success.
 fn run_command( cmd: &mut Command ) -> Result<(String, String), FetchError>
 {
-    let output = try!(cmd.output());
+    let output = cmd.output()?;
 
-    if output.status.success() {
-        return Ok( (String::from_utf8(output.stdout).unwrap(),
-                    String::from_utf8(output.stderr).unwrap()) );
+    return if output.status.success() {
+        Ok((String::from_utf8(output.stdout).unwrap(),
+            String::from_utf8(output.stderr).unwrap()))
     } else {
-	println!( "Command {:?} exited with status {}", cmd, output.status );
-        return Err( FetchError::CommandError( output.status ) );
+        println!("Command {:?} exited with status {}", cmd, output.status);
+        Err(FetchError::CommandError(output.status))
     }
 }
 
@@ -60,7 +60,7 @@ fn fetch_package(out_dir: &str, url: &str, md5: &str) -> Result<(PathBuf, MD5Sta
             Err(e) => {
                 if e.kind() == std::io::ErrorKind::NotFound {
                     println!("Downloading {} to {}", url, target_path_str);
-                    try!(run_command( &mut Command::new("curl").args(&["-L", url, "-o", target_path_str]) ));
+                    run_command( &mut Command::new("curl").args(&["-L", url, "-o", target_path_str]) )?;
                 } else {
                     return Err( FetchError::IOError(e) );
                 }
@@ -90,8 +90,8 @@ fn replace_lines( path: &Path, replacements: Vec<(&str,&str)> ) -> Result< u32, 
     let new_path = path.with_extension(".new");
 
     {
-        let f_in = try!(File::open(&path));
-        let f_out = try!(File::create(&new_path));
+        let f_in = File::open(&path)?;
+        let f_out = File::create(&new_path)?;
         let reader = BufReader::new(&f_in);
         let mut writer = BufWriter::new(&f_out);
 
@@ -99,17 +99,17 @@ fn replace_lines( path: &Path, replacements: Vec<(&str,&str)> ) -> Result< u32, 
             let line = line.unwrap();
             for &(original, replacement) in &replacements {
                 if line.starts_with(&original) {
-                    try!(writeln!(writer, "{}", replacement));
+                    writeln!(writer, "{}", replacement)?;
                     lines_replaced += 1;
                     continue 'read;
                 }
             }
-            try!(writeln!(writer, "{}", line));
+            writeln!(writer, "{}", line)?;
         }
     }
 
-    try!( fs::remove_file(&path) );
-    try!( fs::rename(&new_path, &path) );
+    fs::remove_file(&path)?;
+    fs::rename(&new_path, &path)?;
 
     return Ok( lines_replaced );
 }
