@@ -1,5 +1,10 @@
-#![allow(non_camel_case_types)] // Allow non-idiomatic names in the whole crate.
+// Allow non-idiomatic names in the whole crate.
+#![allow(non_camel_case_types)]
+#![allow(non_snake_case)]
 extern crate libc;
+
+#[cfg(test)]
+mod test;
 
 use libc::{c_char, c_double, c_int, c_long, c_uint, c_ulong, c_void, FILE};
 
