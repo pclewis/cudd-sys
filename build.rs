@@ -6,8 +6,8 @@ use std::io::{BufReader,BufWriter,BufRead,Write};
 use std::fs::File;
 use std::path::{Path,PathBuf};
 
-const PACKAGE_URL:&'static str = "https://github.com/ivmai/cudd/archive/refs/tags/cudd-2.5.1.tar.gz";
-const PACKAGE_MD5:&'static str = "42283a52ff815c5ca8231b6927318fbf";
+const PACKAGE_URL: &str = "https://github.com/ivmai/cudd/archive/refs/tags/cudd-2.5.1.tar.gz";
+const PACKAGE_MD5: &str = "42283a52ff815c5ca8231b6927318fbf";
 
 #[derive(Debug)]
 enum FetchError {
@@ -24,7 +24,7 @@ enum MD5Status {
 
 impl From<std::io::Error> for FetchError {
     fn from(err: std::io::Error) -> FetchError {
-        return FetchError::IOError( err );
+        FetchError::IOError( err )
     }
 }
 
@@ -67,11 +67,11 @@ fn fetch_package(out_dir: &str, url: &str, md5: &str) -> Result<(PathBuf, MD5Sta
             }
         }
 
-        run_command( &mut Command::new("md5sum").arg(target_path_str) ).or(
+        run_command( &mut Command::new("md5sum").arg(target_path_str) ).or_else(|_|
             run_command( &mut Command::new("md5").arg(target_path_str) ))
     };
 
-    return Ok(
+    Ok(
         (target_path,
         match md5_result {
             Err( _ ) => MD5Status::Unknown,
@@ -80,7 +80,7 @@ fn fetch_package(out_dir: &str, url: &str, md5: &str) -> Result<(PathBuf, MD5Sta
                 if out.contains(md5) { MD5Status::Match }
                 else { MD5Status::Mismatch }
             }
-        }));
+        }))
 
 }
 
@@ -111,7 +111,7 @@ fn replace_lines( path: &Path, replacements: Vec<(&str,&str)> ) -> Result< u32, 
     fs::remove_file(&path)?;
     fs::rename(&new_path, &path)?;
 
-    return Ok( lines_replaced );
+    Ok( lines_replaced )
 }
 
 fn main() {
@@ -137,12 +137,12 @@ fn main() {
     // patch Makefile
     let lines_replaced = replace_lines(
         &untarred_path.join("Makefile"),
-        vec!(// need PIC so our rust lib can be dynamically linked
+        vec![// need PIC so our rust lib can be dynamically linked
             ("ICFLAGS\t= -g -O3",
              "ICFLAGS\t= -g -O3 -fPIC"),
             // remove "nanotrav" from DIRS, it doesn't compile on OSX
             ("DIRS\t= $(BDIRS)", // (matches prefix)
-             "DIRS\t= $(BDIRS)"))).unwrap();
+             "DIRS\t= $(BDIRS)")]).unwrap();
     if lines_replaced != 2 {
         panic!("Replaced {} lines in Makefile, expected 1", lines_replaced);
     }
