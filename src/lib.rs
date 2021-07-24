@@ -103,7 +103,7 @@ pub enum Cudd_VariableType {
 pub type DdHalfWord = libc::uint16_t;
 
 #[cfg(all(target_pointer_width = "64"))]
-pub type DdHalfWord = libc::uint32_t;
+pub type DdHalfWord = u32;
 
 #[repr(C)]
 pub struct DdNode
