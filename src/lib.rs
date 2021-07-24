@@ -1,3 +1,4 @@
+#![allow(non_camel_case_types)] // Allow non-idiomatic names in the whole crate.
 extern crate libc;
 
 use libc::{c_void,c_uint,c_long,c_ulong,c_int,c_char,c_double,FILE};
