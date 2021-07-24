@@ -45,8 +45,26 @@ jobs:
   # Run tests.
   test:
     needs: check
-    name: Test Suite
+    name: Test Suite (linux)
     runs-on: ubuntu-latest
+    env:
+      RUSTFLAGS: "-D warnings"
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ env.RUST_VERSION }}
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+
+  # Run tests on macOS.
+  test-macos:
+    needs: check
+    name: Test Suite (macOS)
+    runs-on: macos-latest
     env:
       RUSTFLAGS: "-D warnings"
     steps:
