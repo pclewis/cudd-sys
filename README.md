@@ -7,3 +7,8 @@
 Allows usage of the CUDD decision diagram library from Rust (tested on Linux and macOS). Uses version `2.5.1` of CUDD available from the unofficial [Github mirror](https://github.com/ivmai/cudd). 
 
 To learn more about CUDD, check out the [manual](https://add-lib.scce.info/assets/documents/cudd-manual.pdf) or [API documentation](https://add-lib.scce.info/assets/doxygen-cudd-documentation/cudd_8h.html).
+
+At the moment, the bindings are functional, but there are some TODOs that need to be addressed:
+ - Support for latest CUDD (3.0.0).
+ - CUDD uses C macros for some basic functionality. Port these to Rust.
+ - Everything is provided as raw C bindings. It would be nice to have *some* type-safe wrappers, at least for basic stuff.
