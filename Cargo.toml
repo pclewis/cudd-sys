@@ -8,4 +8,4 @@ repository = "https://github.com/pclewis/cudd-sys"
 license = "CC0-1.0"
 
 [dependencies]
-libc = "*"
+libc = "0.2"
