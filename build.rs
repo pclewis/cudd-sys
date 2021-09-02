@@ -1,13 +1,12 @@
 // build.rs
 use std::env;
-use std::fs;
-use std::fs::File;
-use std::io::{BufRead, BufReader, BufWriter, Write};
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use MD5Status::{Mismatch, Unknown};
 
-const PACKAGE_URL: &str = "https://github.com/ivmai/cudd/archive/refs/tags/cudd-2.5.1.tar.gz";
-const PACKAGE_MD5: &str = "42283a52ff815c5ca8231b6927318fbf";
+const PACKAGE_URL: &str = "https://github.com/ivmai/cudd/archive/refs/tags/cudd-3.0.0.tar.gz";
+const PACKAGE_MD5: &str = "edca9c69528256ca8ae37be9cedef73f";
 
 #[derive(Debug)]
 enum FetchError {
@@ -47,146 +46,73 @@ fn run_command(cmd: &mut Command) -> Result<(String, String), FetchError> {
 fn fetch_package(out_dir: &str, url: &str, md5: &str) -> Result<(PathBuf, MD5Status), FetchError> {
     let out_path = Path::new(&out_dir);
     let target_path = out_path.join(Path::new(url).file_name().unwrap());
+    let target_path_str = target_path.clone().into_os_string().into_string().unwrap();
 
-    let md5_result = {
-        let target_path_str = target_path.to_str().unwrap();
-        let meta = fs::metadata(&target_path);
-
-        match meta {
-            Ok(m) => {
-                if m.is_file() {
-                    println!("{} already exists, skipping download", target_path_str)
-                } else {
-                    return Err(FetchError::PathExists);
-                }
-            }
-            Err(e) => {
-                if e.kind() == std::io::ErrorKind::NotFound {
-                    println!("Downloading {} to {}", url, target_path_str);
-                    run_command(&mut Command::new("curl").args(&[
-                        "-L",
-                        url,
-                        "-o",
-                        target_path_str,
-                    ]))?;
-                } else {
-                    return Err(FetchError::IOError(e));
-                }
-            }
+    match target_path.metadata() {
+        Err(error) if error.kind() == ErrorKind::NotFound => {
+            // Path does not exist! Start download...
+            println!("Downloading {} to {}", url, target_path_str);
+            let mut command = Command::new("curl");
+            command.args(&["-L", url, "-o", target_path_str.as_str()]);
+            run_command(&mut command)?;
         }
+        Ok(data) if data.is_file() => {
+            println!("{} exists. Skipping download.", target_path_str);
+        }
+        Ok(_) => return Err(FetchError::PathExists),
+        Err(error) => return Err(FetchError::IOError(error)),
+    }
 
-        run_command(&mut Command::new("md5sum").arg(target_path_str))
-            .or_else(|_| run_command(&mut Command::new("md5").arg(target_path_str)))
+    // Now run md5 sum check:
+    let mut command_1 = Command::new("md5sum");
+    command_1.arg(target_path.clone());
+    let mut command_2 = Command::new("md5");
+    command_2.arg(target_path.clone());
+    let md5_result = run_command(&mut command_1).or_else(|_| run_command(&mut command_2));
+
+    let md5_status = match md5_result {
+        Err(_) => MD5Status::Unknown,
+        Ok((output, _)) if output.contains(md5) => MD5Status::Match,
+        _ => MD5Status::Mismatch,
     };
 
-    Ok((
-        target_path,
-        match md5_result {
-            Err(_) => MD5Status::Unknown,
-            Ok((out, _)) => {
-                // md5sum outputs "<md5> <file>", md5 on OSX outputs "MD5 (<file>) = <md5>"
-                if out.contains(md5) {
-                    MD5Status::Match
-                } else {
-                    MD5Status::Mismatch
-                }
-            }
-        },
-    ))
+    Ok((target_path, md5_status))
 }
 
-fn replace_lines(path: &Path, replacements: Vec<(&str, &str)>) -> Result<u32, std::io::Error> {
-    let mut lines_replaced = 0;
-    let new_path = path.with_extension(".new");
+fn main() -> Result<(), String> {
+    let out_dir = env::var("OUT_DIR")
+        .map_err(|_| format!("Environmental variable `OUT_DIR` not defined."))?;
 
-    {
-        let f_in = File::open(&path)?;
-        let f_out = File::create(&new_path)?;
-        let reader = BufReader::new(&f_in);
-        let mut writer = BufWriter::new(&f_out);
-
-        'read: for line in reader.lines() {
-            let line = line.unwrap();
-            for &(original, replacement) in &replacements {
-                if line.starts_with(&original) {
-                    writeln!(writer, "{}", replacement)?;
-                    lines_replaced += 1;
-                    continue 'read;
-                }
-            }
-            writeln!(writer, "{}", line)?;
-        }
-    }
-
-    fs::remove_file(&path)?;
-    fs::rename(&new_path, &path)?;
-
-    Ok(lines_replaced)
-}
-
-fn main() {
-    let out_dir = env::var("OUT_DIR").unwrap();
-
-    let (tar_path, md5_status) = fetch_package(&out_dir, PACKAGE_URL, PACKAGE_MD5).unwrap();
+    let (tar_path, md5_status) = fetch_package(&out_dir, PACKAGE_URL, PACKAGE_MD5)
+        .map_err(|e| format!("Error downloading CUDD package: {:?}.", e))?;
+    let tar_path_str = tar_path.to_str().unwrap().to_string();
 
     match md5_status {
-        MD5Status::Match => (),
-        MD5Status::Unknown => println!("No md5 available, skipping package validation"),
-        MD5Status::Mismatch => panic!("MD5 mismatch on package"),
+        Unknown => eprintln!("WARNING: MD5 not computed. Package validation skipped."),
+        Mismatch => return Err(format!("CUDD package MD5 hash mismatch.")),
+        _ => (),
     }
 
-    let untarred_path = tar_path.with_extension("").with_extension(""); // kill .tar and .gz
-    if !untarred_path.exists() {
+    // Get cudd.tar.gz path without extensions.
+    let cudd_path = tar_path.with_extension("").with_extension("");
+    let cudd_path_str = cudd_path.clone().into_os_string().into_string().unwrap();
+
+    if !cudd_path.exists() {
         // Create the destination directory.
-        std::fs::create_dir_all(untarred_path.clone()).unwrap();
+        std::fs::create_dir_all(cudd_path.clone())
+            .map_err(|e| format!("Cannot create CUDD director: {:?}", e))?;
     }
 
-    // untar package, ignoring the name of the top level folder, dumping into untarred_path instead.
-    let untarred_path_str = untarred_path
-        .clone()
-        .into_os_string()
-        .into_string()
-        .unwrap();
-    run_command(Command::new("tar").args(&[
-        "xf",
-        tar_path.to_str().unwrap(),
-        "--strip-components=1",
-        "-C",
-        &untarred_path_str,
-    ]))
-    .unwrap();
+    // un-tar package, ignoring the name of the top level folder, dumping into cudd_path instead.
+    let mut tar_command = Command::new("tar");
+    tar_command.args(&["xf", &tar_path_str, "--strip-components=1", "-C", &cudd_path_str]);
+    run_command(&mut tar_command)
+        .map_err(|e| format!("Error decompressing CUDD: {:?}", e))?;
 
-    // patch Makefile
-    let lines_replaced = replace_lines(
-        &untarred_path.join("Makefile"),
-        vec![
-            // need PIC so our rust lib can be dynamically linked
-            ("ICFLAGS\t= -g -O3", "ICFLAGS\t= -g -O3 -fPIC"),
-            // remove "nanotrav" from DIRS, it doesn't compile on OSX
-            (
-                "DIRS\t= $(BDIRS)", // (matches prefix)
-                "DIRS\t= $(BDIRS)",
-            ),
-        ],
-    )
-    .unwrap();
-    if lines_replaced != 2 {
-        panic!("Replaced {} lines in Makefile, expected 1", lines_replaced);
-    }
+    let build_output = autotools::build(cudd_path);
+    eprintln!("Output: {}", build_output.display());
+    println!("cargo:rustc-link-search=native={}/lib", build_output.display());
+    println!("cargo:rustc-link-lib=static=cudd");
 
-    // build libraries (execute make)
-    run_command(Command::new("make").current_dir(&untarred_path)).unwrap();
-
-    // Move all libs to output directory so we don't have to specify each directory
-    run_command(
-        Command::new("sh")
-            .current_dir(&out_dir)
-            .args(&["-c", "cp cudd-*/*/*.a ."]),
-    )
-    .unwrap();
-
-    println!("cargo:rustc-flags=-L {}", out_dir);
-    println!(
-        "cargo:rustc-flags=-l static=cudd -l static=mtr -l static=util -l static=epd -l static=st"
-    );
+    Ok(())
 }
