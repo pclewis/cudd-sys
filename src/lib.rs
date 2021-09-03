@@ -6,7 +6,7 @@ extern crate libc;
 #[cfg(test)]
 mod test;
 
-use libc::{c_char, c_double, c_int, c_long, c_uint, c_ulong, c_void};
+use libc::{c_char, c_double, c_int, c_long, c_uint, c_ulong, c_void, size_t, FILE};
 use std::marker::{PhantomData, PhantomPinned};
 use std::ops::Not;
 
@@ -19,9 +19,9 @@ pub const CUDD_FALSE: c_uint = 0;
 pub const CUDD_OUT_OF_MEM: c_int = -1;
 
 /// Recommended default size of the unique node table.
-pub const CUDD_UNIQUE_SLOTS: c_uint = (1 << 8);
+pub const CUDD_UNIQUE_SLOTS: c_uint = 1 << 8;
 /// Recommended default size of the operation cache table.
-pub const CUDD_CACHE_SLOTS: c_uint = (1 << 18);
+pub const CUDD_CACHE_SLOTS: c_uint = 1 << 18;
 
 /// Default option for `Cudd_addResidue`: specifies that the least-significant-bit is on top,
 /// and the number is interpreted as unsigned.
@@ -36,7 +36,7 @@ pub const CUDD_RESIDUE_MSB: c_int = 1;
 pub const CUDD_RESIDUE_TC: c_int = 2;
 
 /// Types of variable reordering algorithms.
-#[repr("C")]
+#[repr(C)]
 pub enum Cudd_ReorderingType {
     CUDD_REORDER_SAME,
     CUDD_REORDER_NONE,
@@ -63,7 +63,7 @@ pub enum Cudd_ReorderingType {
 }
 
 /// Type of aggregation method algorithm.
-#[repr("C")]
+#[repr(C)]
 pub enum Cudd_AggregationType {
     CUDD_NO_CHECK,
     CUDD_GROUP_CHECK,
@@ -78,7 +78,7 @@ pub enum Cudd_AggregationType {
 }
 
 /// Type of a hook.
-#[repr("C")]
+#[repr(C)]
 pub enum Cudd_HookType {
     CUDD_PRE_GC_HOOK,
     CUDD_POST_GC_HOOK,
@@ -87,7 +87,7 @@ pub enum Cudd_HookType {
 }
 
 // Type of an error code.
-#[repr("C")]
+#[repr(C)]
 pub enum Cudd_ErrorType {
     CUDD_NO_ERROR,
     CUDD_MEMORY_OUT,
@@ -100,7 +100,7 @@ pub enum Cudd_ErrorType {
 }
 
 /// Type of grouping used during lazy sifting.
-#[repr("C")]
+#[repr(C)]
 pub enum Cudd_LazyGroupType {
     CUDD_LAZY_NONE,
     CUDD_LAZY_SOFT_GROUP,
@@ -109,7 +109,7 @@ pub enum Cudd_LazyGroupType {
 }
 
 /// Type of variable used during lazy sifting.
-#[repr("C")]
+#[repr(C)]
 pub enum Cudd_VariableType {
     CUDD_VAR_PRIMARY_INPUT,
     CUDD_VAR_PRESENT_STATE,
@@ -120,21 +120,21 @@ pub enum Cudd_VariableType {
 pub type CUDD_VALUE_TYPE = c_double;
 
 /// An opaque C struct used to represent the decision diagram nodes.
-#[repr("C")]
+#[repr(C)]
 pub struct DdNode {
     _data: [u8; 0],
     _marker: PhantomData<(*mut u8, PhantomPinned)>,
 }
 
 /// An opaque C struct used to represent the CUDD manager.
-#[repr("C")]
+#[repr(C)]
 pub struct DdManager {
     _data: [u8; 0],
     _marker: PhantomData<(*mut u8, PhantomPinned)>,
 }
 
 /// An opaque C struct used to represent the CUDD generator.
-#[repr("C")]
+#[repr(C)]
 pub struct DdGen {
     _data: [u8; 0],
     _marker: PhantomData<(*mut u8, PhantomPinned)>,
@@ -152,7 +152,7 @@ pub type DdConstApaNumber = *const DdApaDigit;
 /// An opaque C struct used to represent the result of computation of two-literal clauses.
 ///
 /// See `Cudd_FindTwoLiteralClauses`.
-#[repr("C")]
+#[repr(C)]
 pub struct DdTlcInfo {
     _data: [u8; 0],
     _marker: PhantomData<(*mut u8, PhantomPinned)>,
@@ -214,7 +214,7 @@ pub const unsafe fn Cudd_NotCond(node: *mut DdNode, condition: c_int) -> *mut Dd
 /// Computes the regular version of a node pointer (i.e. without the complement
 /// bit set, regardless of its previous value).
 pub const unsafe fn Cudd_Regular(node: *mut DdNode) -> *mut DdNode {
-    ((node as usize) & 01.not()) as *mut DdNode
+    ((node as usize) & (01 as usize).not()) as *mut DdNode
 }
 
 /// Computes the complemented version of a node pointer (i.e. with a complement
