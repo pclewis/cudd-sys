@@ -6,26 +6,37 @@ extern crate libc;
 #[cfg(test)]
 mod test;
 
-use libc::{c_char, c_double, c_int, c_long, c_uint, c_ulong, c_void, FILE};
+use libc::{c_char, c_double, c_int, c_long, c_uint, c_ulong, c_void};
+use std::marker::{PhantomData, PhantomPinned};
+use std::ops::Not;
 
-pub static CUDD_TRUE: c_uint = 1;
-pub static CUDD_FALSE: c_uint = 0;
+/// An integer representation of a Boolean `true` constant. (This is not a DD construct!)
+pub const CUDD_TRUE: c_uint = 1;
+/// An integer representation of a Boolean `false` constant. (This is not a DD construct!)
+pub const CUDD_FALSE: c_uint = 0;
 
-pub type CUDD_VALUE_TYPE = c_double;
+/// An special return value indicating an out-of-memory error.
+pub const CUDD_OUT_OF_MEM: c_int = -1;
 
-pub static CUDD_OUT_OF_MEM: c_int = -1;
+/// Recommended default size of the unique node table.
+pub const CUDD_UNIQUE_SLOTS: c_uint = (1 << 8);
+/// Recommended default size of the operation cache table.
+pub const CUDD_CACHE_SLOTS: c_uint = (1 << 18);
 
-pub static CUDD_UNIQUE_SLOTS: c_uint = 256;
-pub static CUDD_CACHE_SLOTS: c_uint = 262144;
+/// Default option for `Cudd_addResidue`: specifies that the least-significant-bit is on top,
+/// and the number is interpreted as unsigned.
+pub const CUDD_RESIDUE_DEFAULT: c_int = 0;
 
-pub static CUDD_RESIDUE_DEFAULT: c_uint = 0;
-pub static CUDD_RESIDUE_MSB: c_uint = 1;
-pub static CUDD_RESIDUE_TC: c_uint = 2;
+/// Used with `Cudd_addResidue`: add (logical or) this flag to the default options to specify that
+/// the most-significant-bit is on top.
+pub const CUDD_RESIDUE_MSB: c_int = 1;
 
-// TODO: pub static CUDD_MAXINDEX
+/// Used with `Cudd_addResidue`: add (logical or) this flag to the default options to specify that
+/// the number should be interpreted as a signed two's complement.
+pub const CUDD_RESIDUE_TC: c_int = 2;
 
-#[repr(C)]
-#[allow(dead_code)]
+/// Types of variable reordering algorithms.
+#[repr("C")]
 pub enum Cudd_ReorderingType {
     CUDD_REORDER_SAME,
     CUDD_REORDER_NONE,
@@ -51,8 +62,8 @@ pub enum Cudd_ReorderingType {
     CUDD_REORDER_EXACT,
 }
 
-#[repr(C)]
-#[allow(dead_code)]
+/// Type of aggregation method algorithm.
+#[repr("C")]
 pub enum Cudd_AggregationType {
     CUDD_NO_CHECK,
     CUDD_GROUP_CHECK,
@@ -66,8 +77,8 @@ pub enum Cudd_AggregationType {
     CUDD_GROUP_CHECK9,
 }
 
-#[repr(C)]
-#[allow(dead_code)]
+/// Type of a hook.
+#[repr("C")]
 pub enum Cudd_HookType {
     CUDD_PRE_GC_HOOK,
     CUDD_POST_GC_HOOK,
@@ -75,8 +86,8 @@ pub enum Cudd_HookType {
     CUDD_POST_REORDERING_HOOK,
 }
 
-#[repr(C)]
-#[allow(dead_code)]
+// Type of an error code.
+#[repr("C")]
 pub enum Cudd_ErrorType {
     CUDD_NO_ERROR,
     CUDD_MEMORY_OUT,
@@ -88,8 +99,8 @@ pub enum Cudd_ErrorType {
     CUDD_INTERNAL_ERROR,
 }
 
-#[repr(C)]
-#[allow(dead_code)]
+/// Type of grouping used during lazy sifting.
+#[repr("C")]
 pub enum Cudd_LazyGroupType {
     CUDD_LAZY_NONE,
     CUDD_LAZY_SOFT_GROUP,
@@ -97,34 +108,276 @@ pub enum Cudd_LazyGroupType {
     CUDD_LAZY_UNGROUP,
 }
 
-#[repr(C)]
-#[allow(dead_code)]
+/// Type of variable used during lazy sifting.
+#[repr("C")]
 pub enum Cudd_VariableType {
     CUDD_VAR_PRIMARY_INPUT,
     CUDD_VAR_PRESENT_STATE,
     CUDD_VAR_NEXT_STATE,
 }
 
-#[cfg(all(target_pointer_width = "32"))]
-pub type DdHalfWord = libc::uint16_t;
+/// Type of the value of a terminal node.
+pub type CUDD_VALUE_TYPE = c_double;
 
-#[cfg(all(target_pointer_width = "64"))]
-pub type DdHalfWord = u32;
-
-#[repr(C)]
+/// An opaque C struct used to represent the decision diagram nodes.
+#[repr("C")]
 pub struct DdNode {
-    index: DdHalfWord,
-    ref_count: DdHalfWord,
-    next: *mut DdNode,
-    union_data: [c_uint; 2],
+    _data: [u8; 0],
+    _marker: PhantomData<(*mut u8, PhantomPinned)>,
 }
 
-pub type DdManager = c_void;
-pub type DdGen = c_void;
-pub type MtrNode = c_void;
-pub type DdTlcInfo = c_void;
+/// An opaque C struct used to represent the CUDD manager.
+#[repr("C")]
+pub struct DdManager {
+    _data: [u8; 0],
+    _marker: PhantomData<(*mut u8, PhantomPinned)>,
+}
 
-#[allow(dead_code)]
+/// An opaque C struct used to represent the CUDD generator.
+#[repr("C")]
+pub struct DdGen {
+    _data: [u8; 0],
+    _marker: PhantomData<(*mut u8, PhantomPinned)>,
+}
+
+/// The type of an arbitrary precision "digit".
+pub type DdApaDigit = u32;
+
+/// The type of an arbitrary precision integer, corresponding to an array of digits.
+pub type DdApaNumber = *mut DdApaDigit;
+
+/// A const-qualified version of `DdApaNumber`.
+pub type DdConstApaNumber = *const DdApaDigit;
+
+/// An opaque C struct used to represent the result of computation of two-literal clauses.
+///
+/// See `Cudd_FindTwoLiteralClauses`.
+#[repr("C")]
+pub struct DdTlcInfo {
+    _data: [u8; 0],
+    _marker: PhantomData<(*mut u8, PhantomPinned)>,
+}
+
+/// Type of the hook function.
+pub type DD_HOOK_FUNCTION = extern "C" fn(*mut DdManager, *const c_char, *mut c_void) -> c_int;
+
+/// Type of the priority function.
+pub type DD_PRIORITY_FUNCTION = extern "C" fn(
+    *mut DdManager,
+    c_int,
+    *mut *mut DdNode,
+    *mut *mut DdNode,
+    *mut *mut DdNode,
+) -> *mut DdNode;
+
+/// Type of the apply operator function.
+pub type DD_APPLY_OPERATOR =
+    extern "C" fn(*mut DdManager, *mut *mut DdNode, *mut *mut DdNode) -> *mut DdNode;
+
+/// Type of the monadic apply operator function.
+pub type DD_MONADIC_APPLY_OPERATOR = extern "C" fn(*mut DdManager, *mut DdNode) -> *mut DdNode;
+
+/// Type of the two-operand cache tag function.
+pub type DD_CACHE_TAG_FUNCTION_2 =
+    extern "C" fn(*mut DdManager, *mut DdNode, *mut DdNode) -> *mut DdNode;
+
+/// Type of the one-operand cache tag function.
+pub type DD_CACHE_TAG_FUNCTION_1 = extern "C" fn(*mut DdManager, *mut DdNode) -> *mut DdNode;
+
+/// Type of the out-of-memory function.
+pub type DD_OUT_OF_MEMORY_FUNCTION = extern "C" fn(size_t) -> c_void;
+
+/// Type of the Q-sort comparison function.
+pub type DD_Q_SORT_FUNCTION = extern "C" fn(*const c_void, *const c_void) -> c_int;
+
+/// Type of the termination handler function.
+pub type DD_TERMINATION_HANDLER = extern "C" fn(*const c_void) -> c_int;
+
+/// Type of the time-out handler function.
+pub type DD_TIME_OUT_HANDLER = extern "C" fn(*mut DdManager, *mut c_void) -> c_void;
+
+/// Complements a DD node by flipping the complement attribute of
+/// the pointer (the least significant bit).
+#[inline]
+pub const unsafe fn Cudd_Not(node: *mut DdNode) -> *mut DdNode {
+    ((node as usize) ^ 01) as *mut DdNode
+}
+
+/// Complements a DD node by flipping the complement attribute
+/// of the pointer if a condition is satisfied. The `condition`
+/// argument must be always either `1` or `0`.
+#[inline]
+pub const unsafe fn Cudd_NotCond(node: *mut DdNode, condition: c_int) -> *mut DdNode {
+    ((node as usize) ^ (condition as usize)) as *mut DdNode
+}
+
+/// Computes the regular version of a node pointer (i.e. without the complement
+/// bit set, regardless of its previous value).
+pub const unsafe fn Cudd_Regular(node: *mut DdNode) -> *mut DdNode {
+    ((node as usize) & 01.not()) as *mut DdNode
+}
+
+/// Computes the complemented version of a node pointer (i.e. with a complement
+/// bit set, regardless of its previous value).
+pub const unsafe fn Cudd_Complement(node: *mut DdNode) -> *mut DdNode {
+    ((node as usize) | 01) as *mut DdNode
+}
+
+/// Returns 1 if a pointer is complemented.
+pub const unsafe fn Cudd_IsComplement(node: *mut DdNode) -> c_int {
+    ((node as usize) & 1) as c_int
+}
+
+/*
+/**
+@brief Returns the current position in the order of variable
+index.
+
+@details Returns the current position in the order of variable
+index. This macro is obsolete and is kept for compatibility. New
+applications should use Cudd_ReadPerm instead.
+
+@sideeffect none
+
+@see Cudd_ReadPerm
+
+ */
+#define Cudd_ReadIndex(dd,index) (Cudd_ReadPerm(dd,index))
+
+
+/**
+@brief Iterates over the cubes of a decision diagram.
+
+@details Iterates over the cubes of a decision diagram f.
+<ul>
+<li> DdManager *manager;
+<li> DdNode *f;
+<li> DdGen *gen;
+<li> int *cube;
+<li> CUDD_VALUE_TYPE value;
+</ul>
+Cudd_ForeachCube allocates and frees the generator. Therefore the
+application should not try to do that. Also, the cube is freed at the
+end of Cudd_ForeachCube and hence is not available outside of the loop.<p>
+CAUTION: It is assumed that dynamic reordering will not occur while
+there are open generators. It is the user's responsibility to make sure
+that dynamic reordering does not occur. As long as new nodes are not created
+during generation, and dynamic reordering is not called explicitly,
+dynamic reordering will not occur. Alternatively, it is sufficient to
+disable dynamic reordering. It is a mistake to dispose of a diagram
+on which generation is ongoing.
+
+@sideeffect none
+
+@see Cudd_ForeachNode Cudd_FirstCube Cudd_NextCube Cudd_GenFree
+Cudd_IsGenEmpty Cudd_AutodynDisable
+
+ */
+#define Cudd_ForeachCube(manager, f, gen, cube, value)\
+for((gen) = Cudd_FirstCube(manager, f, &cube, &value);\
+Cudd_IsGenEmpty(gen) ? Cudd_GenFree(gen) : CUDD_TRUE;\
+(void) Cudd_NextCube(gen, &cube, &value))
+
+
+/**
+@brief Iterates over the primes of a Boolean function.
+
+@details Iterates over the primes of a Boolean function producing
+a prime, but not necessarily irredundant, cover.
+<ul>
+<li> DdManager *manager;
+<li> DdNode *l;
+<li> DdNode *u;
+<li> DdGen *gen;
+<li> int *cube;
+</ul>
+The Boolean function is described by an upper bound and a lower bound.  If
+the function is completely specified, the two bounds coincide.
+Cudd_ForeachPrime allocates and frees the generator.  Therefore the
+application should not try to do that.  Also, the cube is freed at the
+end of Cudd_ForeachPrime and hence is not available outside of the loop.<p>
+CAUTION: It is a mistake to change a diagram on which generation is ongoing.
+
+@sideeffect none
+
+@see Cudd_ForeachCube Cudd_FirstPrime Cudd_NextPrime Cudd_GenFree
+Cudd_IsGenEmpty
+
+ */
+#define Cudd_ForeachPrime(manager, l, u, gen, cube)\
+for((gen) = Cudd_FirstPrime(manager, l, u, &cube);\
+Cudd_IsGenEmpty(gen) ? Cudd_GenFree(gen) : CUDD_TRUE;\
+(void) Cudd_NextPrime(gen, &cube))
+
+
+/**
+@brief Iterates over the nodes of a decision diagram.
+
+@details Iterates over the nodes of a decision diagram f.
+<ul>
+<li> DdManager *manager;
+<li> DdNode *f;
+<li> DdGen *gen;
+<li> DdNode *node;
+</ul>
+The nodes are returned in a seemingly random order.
+Cudd_ForeachNode allocates and frees the generator. Therefore the
+application should not try to do that.<p>
+CAUTION: It is assumed that dynamic reordering will not occur while
+there are open generators. It is the user's responsibility to make sure
+that dynamic reordering does not occur. As long as new nodes are not created
+during generation, and dynamic reordering is not called explicitly,
+dynamic reordering will not occur. Alternatively, it is sufficient to
+disable dynamic reordering. It is a mistake to dispose of a diagram
+on which generation is ongoing.
+
+@sideeffect none
+
+@see Cudd_ForeachCube Cudd_FirstNode Cudd_NextNode Cudd_GenFree
+Cudd_IsGenEmpty Cudd_AutodynDisable
+
+ */
+#define Cudd_ForeachNode(manager, f, gen, node)\
+for((gen) = Cudd_FirstNode(manager, f, &node);\
+Cudd_IsGenEmpty(gen) ? Cudd_GenFree(gen) : CUDD_TRUE;\
+(void) Cudd_NextNode(gen, &node))
+
+
+/**
+@brief Iterates over the paths of a %ZDD.
+
+@details Iterates over the paths of a %ZDD f.
+<ul>
+<li> DdManager *manager;
+<li> DdNode *f;
+<li> DdGen *gen;
+<li> int *path;
+</ul>
+Cudd_zddForeachPath allocates and frees the generator. Therefore the
+application should not try to do that. Also, the path is freed at the
+end of Cudd_zddForeachPath and hence is not available outside of the loop.<p>
+CAUTION: It is assumed that dynamic reordering will not occur while
+there are open generators.  It is the user's responsibility to make sure
+that dynamic reordering does not occur.  As long as new nodes are not created
+during generation, and dynamic reordering is not called explicitly,
+dynamic reordering will not occur.  Alternatively, it is sufficient to
+disable dynamic reordering.  It is a mistake to dispose of a diagram
+on which generation is ongoing.
+
+@sideeffect none
+
+@see Cudd_zddFirstPath Cudd_zddNextPath Cudd_GenFree
+Cudd_IsGenEmpty Cudd_AutodynDisable
+
+ */
+#define Cudd_zddForeachPath(manager, f, gen, path)\
+for((gen) = Cudd_zddFirstPath(manager, f, &path);\
+Cudd_IsGenEmpty(gen) ? Cudd_GenFree(gen) : CUDD_TRUE;\
+(void) Cudd_zddNextPath(gen, &path))
+
+
+ */
+
 extern "C" {
     pub fn Cudd_addNewVar(dd: *mut DdManager) -> *mut DdNode;
     pub fn Cudd_addNewVarAtLevel(dd: *mut DdManager, level: c_int) -> *mut DdNode;
@@ -135,20 +388,43 @@ extern "C" {
     pub fn Cudd_bddIthVar(dd: *mut DdManager, i: c_int) -> *mut DdNode;
     pub fn Cudd_zddIthVar(dd: *mut DdManager, i: c_int) -> *mut DdNode;
     pub fn Cudd_zddVarsFromBddVars(dd: *mut DdManager, multiplicity: c_int) -> c_int;
+    pub fn Cudd_ReadMaxIndex() -> c_uint;
     pub fn Cudd_addConst(dd: *mut DdManager, c: CUDD_VALUE_TYPE) -> *mut DdNode;
+    pub fn Cudd_IsConstant(node: *mut DdNode) -> c_int;
     pub fn Cudd_IsNonConstant(f: *mut DdNode) -> c_int;
+    pub fn Cudd_T(node: *mut DdNode) -> *mut DdNode;
+    pub fn Cudd_E(node: *mut DdNode) -> *mut DdNode;
+    pub fn Cudd_V(node: *mut DdNode) -> CUDD_VALUE_TYPE;
     pub fn Cudd_ReadStartTime(unique: *mut DdManager) -> c_ulong;
     pub fn Cudd_ReadElapsedTime(unique: *mut DdManager) -> c_ulong;
     pub fn Cudd_SetStartTime(unique: *mut DdManager, st: c_ulong) -> c_void;
     pub fn Cudd_ResetStartTime(unique: *mut DdManager) -> c_void;
     pub fn Cudd_ReadTimeLimit(unique: *mut DdManager) -> c_ulong;
-    pub fn Cudd_SetTimeLimit(unique: *mut DdManager, tl: c_ulong) -> c_void;
+    pub fn Cudd_SetTimeLimit(unique: *mut DdManager, tl: c_ulong) -> c_ulong;
     pub fn Cudd_UpdateTimeLimit(unique: *mut DdManager) -> c_void;
     pub fn Cudd_IncreaseTimeLimit(unique: *mut DdManager, increase: c_ulong) -> c_void;
     pub fn Cudd_UnsetTimeLimit(unique: *mut DdManager) -> c_void;
     pub fn Cudd_TimeLimited(unique: *mut DdManager) -> c_int;
-    //pub fn Cudd_RegisterTerminationCallback(unique: *mut DdManager, callback: c_DD_THFP, callback_arg: *mut c_void) -> c_void;
+    pub fn Cudd_RegisterTerminationCallback(
+        unique: *mut DdManager,
+        callback: DD_TERMINATION_HANDLER,
+        callback_arg: *mut c_void,
+    ) -> c_void;
     pub fn Cudd_UnregisterTerminationCallback(unique: *mut DdManager) -> c_void;
+    pub fn Cudd_RegisterOutOfMemoryCallback(
+        unique: *mut DdManager,
+        callback: DD_OUT_OF_MEMORY_FUNCTION,
+    ) -> DD_OUT_OF_MEMORY_FUNCTION;
+    pub fn Cudd_UnregisterOutOfMemoryCallback(unique: *mut DdManager) -> c_void;
+    pub fn Cudd_RegisterTimeoutHandler(
+        unique: *mut DdManager,
+        handler: DD_TIME_OUT_HANDLER,
+        arg: *mut c_void,
+    ) -> c_void;
+    pub fn Cudd_ReadTimeoutHandler(
+        unique: *mut DdManager,
+        argp: *mut *mut c_void,
+    ) -> DD_TIME_OUT_HANDLER;
     pub fn Cudd_AutodynEnable(unique: *mut DdManager, method: Cudd_ReorderingType) -> c_void;
     pub fn Cudd_AutodynDisable(unique: *mut DdManager) -> c_void;
     pub fn Cudd_ReorderingStatus(unique: *mut DdManager, method: *mut Cudd_ReorderingType)
@@ -213,13 +489,7 @@ extern "C" {
     pub fn Cudd_SetMaxGrowthAlternate(dd: *mut DdManager, mg: c_double) -> c_void;
     pub fn Cudd_ReadReorderingCycle(dd: *mut DdManager) -> c_int;
     pub fn Cudd_SetReorderingCycle(dd: *mut DdManager, cycle: c_int) -> c_void;
-    pub fn Cudd_ReadTree(dd: *mut DdManager) -> *mut MtrNode;
-    pub fn Cudd_SetTree(dd: *mut DdManager, tree: *mut MtrNode) -> c_void;
-    pub fn Cudd_FreeTree(dd: *mut DdManager) -> c_void;
-    pub fn Cudd_ReadZddTree(dd: *mut DdManager) -> *mut MtrNode;
-    pub fn Cudd_SetZddTree(dd: *mut DdManager, tree: *mut MtrNode) -> c_void;
-    pub fn Cudd_FreeZddTree(dd: *mut DdManager) -> c_void;
-    pub fn Cudd_NodeReadIndex(node: *mut DdNode) -> c_uint;
+    pub fn Cudd_NodeReadIndex(dd: *mut DdNode) -> c_uint;
     pub fn Cudd_ReadPerm(dd: *mut DdManager, i: c_int) -> c_int;
     pub fn Cudd_ReadPermZdd(dd: *mut DdManager, i: c_int) -> c_int;
     pub fn Cudd_ReadInvPerm(dd: *mut DdManager, i: c_int) -> c_int;
