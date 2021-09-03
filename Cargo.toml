@@ -1,6 +1,6 @@
 [package]
 name = "cudd-sys"
-version = "0.1.1"
+version = "1.0.0"
 authors = ["Philip Lewis <pcl@pclewis.com>"]
 build = "build.rs"
 description = "Bindings for CU Decision Diagram library (CUDD)"
@@ -11,5 +11,4 @@ license = "CC0-1.0"
 libc = "0.2"
 
 [build-dependencies]
-bindgen = "0.59.1"
 autotools = "0.2.3"

@@ -37,7 +37,7 @@ fn run_command(cmd: &mut Command) -> Result<(String, String), FetchError> {
             String::from_utf8(output.stderr).unwrap(),
         ))
     } else {
-        println!("Command {:?} exited with status {}", cmd, output.status);
+        eprintln!("Command {:?} exited with status {}", cmd, output.status);
         Err(FetchError::CommandError(output.status))
     };
 }
@@ -60,7 +60,7 @@ fn fetch_package(out_dir: &str, url: &str, md5: &str) -> Result<(PathBuf, MD5Sta
             println!("{} exists. Skipping download.", target_path_str);
         }
         Ok(_) => return Err(FetchError::PathExists),
-        Err(error) => return Err(FetchError::IOError(error)),
+        Err(error) => return Err(FetchError::from(error)),
     }
 
     // Now run md5 sum check:
@@ -81,7 +81,7 @@ fn fetch_package(out_dir: &str, url: &str, md5: &str) -> Result<(PathBuf, MD5Sta
 
 fn main() -> Result<(), String> {
     let out_dir = env::var("OUT_DIR")
-        .map_err(|_| format!("Environmental variable `OUT_DIR` not defined."))?;
+        .map_err(|_| "Environmental variable `OUT_DIR` not defined.".to_string())?;
 
     let (tar_path, md5_status) = fetch_package(&out_dir, PACKAGE_URL, PACKAGE_MD5)
         .map_err(|e| format!("Error downloading CUDD package: {:?}.", e))?;
@@ -89,7 +89,7 @@ fn main() -> Result<(), String> {
 
     match md5_status {
         Unknown => eprintln!("WARNING: MD5 not computed. Package validation skipped."),
-        Mismatch => return Err(format!("CUDD package MD5 hash mismatch.")),
+        Mismatch => return Err("CUDD package MD5 hash mismatch.".to_string()),
         _ => (),
     }
 
@@ -105,13 +105,20 @@ fn main() -> Result<(), String> {
 
     // un-tar package, ignoring the name of the top level folder, dumping into cudd_path instead.
     let mut tar_command = Command::new("tar");
-    tar_command.args(&["xf", &tar_path_str, "--strip-components=1", "-C", &cudd_path_str]);
-    run_command(&mut tar_command)
-        .map_err(|e| format!("Error decompressing CUDD: {:?}", e))?;
+    tar_command.args(&[
+        "xf",
+        &tar_path_str,
+        "--strip-components=1",
+        "-C",
+        &cudd_path_str,
+    ]);
+    run_command(&mut tar_command).map_err(|e| format!("Error decompressing CUDD: {:?}", e))?;
 
     let build_output = autotools::build(cudd_path);
-    eprintln!("Output: {}", build_output.display());
-    println!("cargo:rustc-link-search=native={}/lib", build_output.display());
+    println!(
+        "cargo:rustc-link-search=native={}",
+        build_output.join("lib").display()
+    );
     println!("cargo:rustc-link-lib=static=cudd");
 
     Ok(())
