@@ -82,6 +82,12 @@ fn fetch_package(out_dir: &str, url: &str, md5: &str) -> Result<(PathBuf, MD5Sta
 }
 
 fn main() -> Result<(), String> {
+    let build_cudd = env::var_os("CARGO_FEATURE_BUILD_CUDD").is_some();
+    if !build_cudd {
+        // If silent build is active, don't do anything.
+        return Ok(());
+    }
+
     let out_dir = env::var("OUT_DIR")
         .map_err(|_| "Environmental variable `OUT_DIR` not defined.".to_string())?;
 

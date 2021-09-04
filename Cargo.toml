@@ -12,3 +12,13 @@ libc = "0.2"
 
 [build-dependencies]
 autotools = "0.2.3"
+
+[features]
+default = ["build_cudd"]
+# When disabled, the build script will not attempt to build CUDD and will just silently continue.
+# This is necessary for building documentation on docs.rs without access to the internet. For other commands
+# (aside from `cargo doc`), this will fail to produce a binary during linking.
+build_cudd = []
+
+[package.metadata.docs.rs]
+no-default-features = true
