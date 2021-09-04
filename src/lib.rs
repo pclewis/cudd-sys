@@ -37,6 +37,9 @@ mod test;
 /// Contains the declarations present in `cudd.h`.
 pub mod cudd;
 
+/// Contains the declarations present in `mtr.h`.
+pub mod mtr;
+
 use std::marker::{PhantomData, PhantomPinned};
 
 /// An opaque C struct used to represent the decision diagram node.
