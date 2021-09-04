@@ -108,7 +108,7 @@ fn main() -> Result<(), String> {
     if !cudd_path.exists() {
         // Create the destination directory.
         std::fs::create_dir_all(cudd_path.clone())
-            .map_err(|e| format!("Cannot create CUDD director: {:?}", e))?;
+            .map_err(|e| format!("Cannot create CUDD directory: {:?}", e))?;
     }
 
     // un-tar package, ignoring the name of the top level folder, dumping into cudd_path instead.
