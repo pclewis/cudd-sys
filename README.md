@@ -4,11 +4,25 @@
 
 # Rust Bindings for the CUDD library
 
-Allows usage of the CUDD decision diagram library from Rust (tested on Linux and macOS). Uses version `2.5.1` of CUDD available from the unofficial [Github mirror](https://github.com/ivmai/cudd). 
+This crate provides unsafe Rust bindings for the University of Colorado decision diagram package (CUDD). It uses version `3.0.0` of CUDD available from the unofficial [Github mirror](https://github.com/ivmai/cudd) and compiles on Linux and MacOS (you should be also able to build CUDD on Windows using cygwin, but the project is not set-up to do it automatically).
 
-To learn more about CUDD, check out the [manual](https://add-lib.scce.info/assets/documents/cudd-manual.pdf) or [API documentation](https://add-lib.scce.info/assets/doxygen-cudd-documentation/cudd_8h.html).
+In the root module, you will find declarations of the C structs and types used
+throughout CUDD. The main API of the CUDD package is then exported in `::cudd`. However,
+CUDD also includes other "public" functionality (multiway-branching trees, extended
+double precision numbers, serialisation, ...) which can be found in the remaining modules.
 
-At the moment, the bindings are functional, but there are some TODOs that need to be addressed:
- - Support for latest CUDD (3.0.0).
- - CUDD uses C macros for some basic functionality. Port these to Rust.
- - Everything is provided as raw C bindings. It would be nice to have *some* type-safe wrappers, at least for basic stuff.
+In some cases, there are macro and constant definitions which cannot be directly exported
+to Rust. These have been re-implemented and should have their own documentation.
+For the functions which are re-exported without change, please refer to the original
+[CUDD doxygen](https://add-lib.scce.info/assets/doxygen-cudd-documentation/) and
+[manual](https://add-lib.scce.info/assets/documents/cudd-manual.pdf).
+
+**Completeness:** The main CUDD API should be fully reproduced here (except for one small
+issue with `f128` numbers). The remaining modules may still be incomplete: if you need
+a function that isn't exported yet, let us know in the issues.
+
+**Correctness:** Unfortunately, CUDD cannot be processed using `bindgen`, so the API was
+reproduced using a semi-automated method with a manual validation step (bunch of regexes
+that a human makes sure didn't break anything ;)). As such, it is possible that there
+are some minor problems that need to be sorted out. Please file an issue if you see any
+unexpected behaviour or segfaults.

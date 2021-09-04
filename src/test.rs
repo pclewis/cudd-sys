@@ -1,8 +1,4 @@
-use Cudd_Quit;
-use {Cudd_Init, CUDD_CACHE_SLOTS};
-use {Cudd_Ref, Cudd_bddAnd};
-use {Cudd_bddIthVar, CUDD_UNIQUE_SLOTS};
-use {Cudd_bddNand, Cudd_bddNor};
+use cudd::*;
 
 #[test]
 pub fn basic_functionality_test() {
