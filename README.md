@@ -10,6 +10,8 @@ available from the unofficial [Github mirror](https://github.com/ivmai/cudd) and
 Linux and MacOS (you should be also able to build CUDD on Windows using cygwin, but the project
 is not set-up to do it automatically).
 
+> On Linux and macOS, you should ideally have `autoconf`, `automake` and `libtool` installed to build CUDD. And of course, some C/C++ compiler (`clang`, `gcc`, etc.).
+
 In the root module, you will find declarations of the C structs and types used
 throughout CUDD. The main API of the CUDD package is then exported in `::cudd`. However,
 CUDD also includes other "public" functionality (multiway-branching trees, extended
