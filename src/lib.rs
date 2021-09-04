@@ -9,6 +9,7 @@ mod test;
 use libc::{c_char, c_double, c_int, c_long, c_uint, c_ulong, c_void, size_t, FILE};
 use std::marker::{PhantomData, PhantomPinned};
 use std::ops::Not;
+use std::ptr::null_mut;
 
 /// An integer representation of a Boolean `true` constant. (This is not a DD construct!)
 pub const CUDD_TRUE: c_uint = 1;
@@ -212,14 +213,22 @@ pub type DD_TIME_OUT_HANDLER = extern "C" fn(*mut DdManager, *mut c_void) -> c_v
 
 /// Complements a DD node by flipping the complement attribute of
 /// the pointer (the least significant bit).
+///
+/// # Safety
+///
+/// This function should only be called on a valid `DdNode` pointer.
 #[inline]
 pub unsafe fn Cudd_Not(node: *mut DdNode) -> *mut DdNode {
-    ((node as usize) ^ 01) as *mut DdNode
+    ((node as usize) ^ 1) as *mut DdNode
 }
 
 /// Complements a DD node by flipping the complement attribute
 /// of the pointer if a condition is satisfied. The `condition`
 /// argument must be always either `1` or `0`.
+///
+/// # Safety
+///
+/// This function should only be called on a valid `DdNode` pointer.
 #[inline]
 pub unsafe fn Cudd_NotCond(node: *mut DdNode, condition: c_int) -> *mut DdNode {
     ((node as usize) ^ (condition as usize)) as *mut DdNode
@@ -227,173 +236,165 @@ pub unsafe fn Cudd_NotCond(node: *mut DdNode, condition: c_int) -> *mut DdNode {
 
 /// Computes the regular version of a node pointer (i.e. without the complement
 /// bit set, regardless of its previous value).
+///
+/// # Safety
+///
+/// This function should only be called on a valid `DdNode` pointer.
 #[inline]
 pub unsafe fn Cudd_Regular(node: *mut DdNode) -> *mut DdNode {
-    ((node as usize) & (01 as usize).not()) as *mut DdNode
+    ((node as usize) & (1_usize).not()) as *mut DdNode
 }
 
 /// Computes the complemented version of a node pointer (i.e. with a complement
 /// bit set, regardless of its previous value).
+///
+/// # Safety
+///
+/// This function should only be called on a valid `DdNode` pointer.
 #[inline]
 pub unsafe fn Cudd_Complement(node: *mut DdNode) -> *mut DdNode {
-    ((node as usize) | 01) as *mut DdNode
+    ((node as usize) | 1) as *mut DdNode
 }
 
 /// Returns 1 if a pointer is complemented.
+///
+/// # Safety
+///
+/// This function should only be called on a valid `DdNode` pointer.
 #[inline]
 pub unsafe fn Cudd_IsComplement(node: *mut DdNode) -> c_int {
     ((node as usize) & 1) as c_int
 }
 
-/*
-/**
-@brief Returns the current position in the order of variable
-index.
+/// Returns the current position in the order of variable
+/// index. This macro is obsolete and is kept for compatibility. New
+/// applications should use `Cudd_ReadPerm` instead.
+///
+/// # Safety
+///
+/// Follows the same invariants as `Cudd_ReadPerm`.
+#[inline]
+pub unsafe fn Cudd_ReadIndex(dd: *mut DdManager, index: c_int) -> c_int {
+    Cudd_ReadPerm(dd, index)
+}
 
-@details Returns the current position in the order of variable
-index. This macro is obsolete and is kept for compatibility. New
-applications should use Cudd_ReadPerm instead.
+/// Iterates over the cubes of a decision diagram f. The length of the cube is the number
+/// of variables in the CUDD manager when the iteration is started.
+///
+/// See `Cudd_FirstCube` for more info.
+///
+/// # Safety
+///
+/// The cube is freed at the end of Cudd_ForeachCube and hence is not available
+/// outside of the loop.
+///
+/// CAUTION: It is assumed that dynamic reordering will not occur while
+/// there are open generators. It is the user's responsibility to make sure
+/// that dynamic reordering does not occur. As long as new nodes are not created
+/// during generation, and dynamic reordering is not called explicitly,
+/// dynamic reordering will not occur. Alternatively, it is sufficient to
+/// disable dynamic reordering. It is a mistake to dispose of a diagram
+/// on which generation is ongoing.
+#[inline]
+pub unsafe fn Cudd_ForeachCube<F: FnMut(*mut c_int, CUDD_VALUE_TYPE)>(
+    manager: *mut DdManager,
+    f: *mut DdNode,
+    mut action: F,
+) {
+    let mut cube = null_mut();
+    let mut value = 0.0;
+    let gen = Cudd_FirstCube(manager, f, &mut cube, &mut value);
+    while Cudd_IsGenEmpty(gen) != 1 {
+        action(cube, value);
+        Cudd_NextCube(gen, &mut cube, &mut value);
+    }
+    Cudd_GenFree(gen);
+}
 
-@sideeffect none
+/// Iterates over the primes of a Boolean function producing
+/// a prime (but not necessarily irredundant) cover.
+/// For more information, see `Cudd_FirstPrime`.
+///
+/// # Safety
+///
+/// The Boolean function is described by an upper bound and a lower bound.  If
+/// the function is completely specified, the two bounds coincide.
+/// Cudd_ForeachPrime allocates and frees the generator.  Therefore the
+/// application should not try to do that.  Also, the cube is freed at the
+/// end of Cudd_ForeachPrime and hence is not available outside of the loop.<p>
+/// CAUTION: It is a mistake to change a diagram on which generation is ongoing.
+#[inline]
+pub unsafe fn Cudd_ForeachPrime<F: FnMut(*mut c_int)>(
+    manager: *mut DdManager,
+    l: *mut DdNode,
+    u: *mut DdNode,
+    mut action: F,
+) {
+    let mut cube = null_mut();
+    let gen = Cudd_FirstPrime(manager, l, u, &mut cube);
+    while Cudd_IsGenEmpty(gen) != 1 {
+        action(cube);
+        Cudd_NextPrime(gen, &mut cube);
+    }
+    Cudd_GenFree(gen);
+}
 
-@see Cudd_ReadPerm
+/// Iterates over the nodes of a decision diagram `f`. See also `Cudd_FirstNode`.
+///
+/// # Safety
+///
+/// The nodes are returned in a seemingly random order.
+///
+/// CAUTION: It is assumed that dynamic reordering will not occur while
+/// there are open generators. It is the user's responsibility to make sure
+/// that dynamic reordering does not occur. As long as new nodes are not created
+/// during generation, and dynamic reordering is not called explicitly,
+/// dynamic reordering will not occur. Alternatively, it is sufficient to
+/// disable dynamic reordering. It is a mistake to dispose of a diagram
+/// on which generation is ongoing.
+#[inline]
+pub unsafe fn Cudd_ForeachNode<F: FnMut(*mut DdNode)>(
+    manager: *mut DdManager,
+    f: *mut DdNode,
+    mut action: F,
+) {
+    let mut node = null_mut();
+    let gen = Cudd_FirstNode(manager, f, &mut node);
+    while Cudd_IsGenEmpty(gen) != 1 {
+        action(node);
+        Cudd_NextNode(gen, &mut node);
+    }
+    Cudd_GenFree(gen);
+}
 
- */
-#define Cudd_ReadIndex(dd,index) (Cudd_ReadPerm(dd,index))
-
-
-/**
-@brief Iterates over the cubes of a decision diagram.
-
-@details Iterates over the cubes of a decision diagram f.
-<ul>
-<li> DdManager *manager;
-<li> DdNode *f;
-<li> DdGen *gen;
-<li> int *cube;
-<li> CUDD_VALUE_TYPE value;
-</ul>
-Cudd_ForeachCube allocates and frees the generator. Therefore the
-application should not try to do that. Also, the cube is freed at the
-end of Cudd_ForeachCube and hence is not available outside of the loop.<p>
-CAUTION: It is assumed that dynamic reordering will not occur while
-there are open generators. It is the user's responsibility to make sure
-that dynamic reordering does not occur. As long as new nodes are not created
-during generation, and dynamic reordering is not called explicitly,
-dynamic reordering will not occur. Alternatively, it is sufficient to
-disable dynamic reordering. It is a mistake to dispose of a diagram
-on which generation is ongoing.
-
-@sideeffect none
-
-@see Cudd_ForeachNode Cudd_FirstCube Cudd_NextCube Cudd_GenFree
-Cudd_IsGenEmpty Cudd_AutodynDisable
-
- */
-#define Cudd_ForeachCube(manager, f, gen, cube, value)\
-for((gen) = Cudd_FirstCube(manager, f, &cube, &value);\
-Cudd_IsGenEmpty(gen) ? Cudd_GenFree(gen) : CUDD_TRUE;\
-(void) Cudd_NextCube(gen, &cube, &value))
-
-
-/**
-@brief Iterates over the primes of a Boolean function.
-
-@details Iterates over the primes of a Boolean function producing
-a prime, but not necessarily irredundant, cover.
-<ul>
-<li> DdManager *manager;
-<li> DdNode *l;
-<li> DdNode *u;
-<li> DdGen *gen;
-<li> int *cube;
-</ul>
-The Boolean function is described by an upper bound and a lower bound.  If
-the function is completely specified, the two bounds coincide.
-Cudd_ForeachPrime allocates and frees the generator.  Therefore the
-application should not try to do that.  Also, the cube is freed at the
-end of Cudd_ForeachPrime and hence is not available outside of the loop.<p>
-CAUTION: It is a mistake to change a diagram on which generation is ongoing.
-
-@sideeffect none
-
-@see Cudd_ForeachCube Cudd_FirstPrime Cudd_NextPrime Cudd_GenFree
-Cudd_IsGenEmpty
-
- */
-#define Cudd_ForeachPrime(manager, l, u, gen, cube)\
-for((gen) = Cudd_FirstPrime(manager, l, u, &cube);\
-Cudd_IsGenEmpty(gen) ? Cudd_GenFree(gen) : CUDD_TRUE;\
-(void) Cudd_NextPrime(gen, &cube))
-
-
-/**
-@brief Iterates over the nodes of a decision diagram.
-
-@details Iterates over the nodes of a decision diagram f.
-<ul>
-<li> DdManager *manager;
-<li> DdNode *f;
-<li> DdGen *gen;
-<li> DdNode *node;
-</ul>
-The nodes are returned in a seemingly random order.
-Cudd_ForeachNode allocates and frees the generator. Therefore the
-application should not try to do that.<p>
-CAUTION: It is assumed that dynamic reordering will not occur while
-there are open generators. It is the user's responsibility to make sure
-that dynamic reordering does not occur. As long as new nodes are not created
-during generation, and dynamic reordering is not called explicitly,
-dynamic reordering will not occur. Alternatively, it is sufficient to
-disable dynamic reordering. It is a mistake to dispose of a diagram
-on which generation is ongoing.
-
-@sideeffect none
-
-@see Cudd_ForeachCube Cudd_FirstNode Cudd_NextNode Cudd_GenFree
-Cudd_IsGenEmpty Cudd_AutodynDisable
-
- */
-#define Cudd_ForeachNode(manager, f, gen, node)\
-for((gen) = Cudd_FirstNode(manager, f, &node);\
-Cudd_IsGenEmpty(gen) ? Cudd_GenFree(gen) : CUDD_TRUE;\
-(void) Cudd_NextNode(gen, &node))
-
-
-/**
-@brief Iterates over the paths of a %ZDD.
-
-@details Iterates over the paths of a %ZDD f.
-<ul>
-<li> DdManager *manager;
-<li> DdNode *f;
-<li> DdGen *gen;
-<li> int *path;
-</ul>
-Cudd_zddForeachPath allocates and frees the generator. Therefore the
-application should not try to do that. Also, the path is freed at the
-end of Cudd_zddForeachPath and hence is not available outside of the loop.<p>
-CAUTION: It is assumed that dynamic reordering will not occur while
-there are open generators.  It is the user's responsibility to make sure
-that dynamic reordering does not occur.  As long as new nodes are not created
-during generation, and dynamic reordering is not called explicitly,
-dynamic reordering will not occur.  Alternatively, it is sufficient to
-disable dynamic reordering.  It is a mistake to dispose of a diagram
-on which generation is ongoing.
-
-@sideeffect none
-
-@see Cudd_zddFirstPath Cudd_zddNextPath Cudd_GenFree
-Cudd_IsGenEmpty Cudd_AutodynDisable
-
- */
-#define Cudd_zddForeachPath(manager, f, gen, path)\
-for((gen) = Cudd_zddFirstPath(manager, f, &path);\
-Cudd_IsGenEmpty(gen) ? Cudd_GenFree(gen) : CUDD_TRUE;\
-(void) Cudd_zddNextPath(gen, &path))
-
-
- */
+/// Iterates over the paths of a ZDD `f`.
+///
+/// # Safety
+///
+/// The path is freed at the end of Cudd_zddForeachPath and hence is not available outside
+/// of the loop.
+///
+/// CAUTION: It is assumed that dynamic reordering will not occur while
+/// there are open generators.  It is the user's responsibility to make sure
+/// that dynamic reordering does not occur.  As long as new nodes are not created
+/// during generation, and dynamic reordering is not called explicitly,
+/// dynamic reordering will not occur.  Alternatively, it is sufficient to
+/// disable dynamic reordering.  It is a mistake to dispose of a diagram
+/// on which generation is ongoing.
+#[inline]
+pub unsafe fn Cudd_zddForeachPath<F: FnMut(*mut c_int)>(
+    manager: *mut DdManager,
+    f: *mut DdNode,
+    mut action: F,
+) {
+    let mut path = null_mut();
+    let gen = Cudd_zddFirstPath(manager, f, &mut path);
+    while Cudd_IsGenEmpty(gen) != 1 {
+        action(path);
+        Cudd_zddNextPath(gen, &mut path);
+    }
+    Cudd_GenFree(gen);
+}
 
 extern "C" {
     pub fn Cudd_addNewVar(dd: *mut DdManager) -> *mut DdNode;
