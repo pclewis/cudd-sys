@@ -1,4 +1,6 @@
-// build.rs
+extern crate autotools;
+
+use autotools::Config;
 use std::env;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
@@ -114,7 +116,9 @@ fn main() -> Result<(), String> {
     ]);
     run_command(&mut tar_command).map_err(|e| format!("Error decompressing CUDD: {:?}", e))?;
 
-    let build_output = autotools::build(cudd_path);
+    // Enable dddmp when building.
+    let build_output = Config::new(cudd_path).enable("dddmp", None).build();
+
     println!(
         "cargo:rustc-link-search=native={}",
         build_output.join("lib").display()
