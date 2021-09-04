@@ -34,11 +34,14 @@ extern crate libc;
 #[cfg(test)]
 mod test;
 
-/// Contains the declarations present in `cudd.h`.
+/// Contains the declarations present in `cudd.h` (main CUDD API).
 pub mod cudd;
 
-/// Contains the declarations present in `mtr.h`.
+/// Contains the declarations present in `mtr.h` (multiway-branching trees).
 pub mod mtr;
+
+/// Contains the declarations present in `epd.h` (extended double precision numbers).
+pub mod epd;
 
 use std::marker::{PhantomData, PhantomPinned};
 
