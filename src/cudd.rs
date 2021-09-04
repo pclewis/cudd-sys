@@ -28,18 +28,8 @@ pub type DD_APPLY_OPERATOR =
 /// Type of the monadic apply operator function.
 pub type DD_MONADIC_APPLY_OPERATOR = extern "C" fn(*mut DdManager, *mut DdNode) -> *mut DdNode;
 
-/// Type of the two-operand cache tag function.
-pub type DD_CACHE_TAG_FUNCTION_2 =
-    extern "C" fn(*mut DdManager, *mut DdNode, *mut DdNode) -> *mut DdNode;
-
-/// Type of the one-operand cache tag function.
-pub type DD_CACHE_TAG_FUNCTION_1 = extern "C" fn(*mut DdManager, *mut DdNode) -> *mut DdNode;
-
 /// Type of the out-of-memory function.
 pub type DD_OUT_OF_MEMORY_FUNCTION = extern "C" fn(size_t) -> c_void;
-
-/// Type of the Q-sort comparison function.
-pub type DD_Q_SORT_FUNCTION = extern "C" fn(*const c_void, *const c_void) -> c_int;
 
 /// Type of the termination handler function.
 pub type DD_TERMINATION_HANDLER = extern "C" fn(*const c_void) -> c_int;
@@ -373,18 +363,18 @@ extern "C" {
     pub fn Cudd_UnregisterTerminationCallback(unique: *mut DdManager) -> c_void;
     pub fn Cudd_RegisterOutOfMemoryCallback(
         unique: *mut DdManager,
-        callback: DD_OUT_OF_MEMORY_FUNCTION,
-    ) -> DD_OUT_OF_MEMORY_FUNCTION;
+        callback: Option<DD_OUT_OF_MEMORY_FUNCTION>,
+    ) -> Option<DD_OUT_OF_MEMORY_FUNCTION>;
     pub fn Cudd_UnregisterOutOfMemoryCallback(unique: *mut DdManager) -> c_void;
     pub fn Cudd_RegisterTimeoutHandler(
         unique: *mut DdManager,
-        handler: DD_TIME_OUT_HANDLER,
+        handler: Option<DD_TIME_OUT_HANDLER>,
         arg: *mut c_void,
     ) -> c_void;
     pub fn Cudd_ReadTimeoutHandler(
         unique: *mut DdManager,
         argp: *mut *mut c_void,
-    ) -> DD_TIME_OUT_HANDLER;
+    ) -> Option<DD_TIME_OUT_HANDLER>;
     pub fn Cudd_AutodynEnable(unique: *mut DdManager, method: Cudd_ReorderingType) -> c_void;
     pub fn Cudd_AutodynDisable(unique: *mut DdManager) -> c_void;
     pub fn Cudd_ReorderingStatus(unique: *mut DdManager, method: *mut Cudd_ReorderingType)
