@@ -158,6 +158,20 @@ pub struct DdTlcInfo {
     _marker: PhantomData<(*mut u8, PhantomPinned)>,
 }
 
+/// An opaque C struct representing an extended double precision floating point number.
+#[repr(C)]
+pub struct EpDouble {
+    _data: [u8; 0],
+    _marker: PhantomData<(*mut u8, PhantomPinned)>,
+}
+
+/// An opaque C struct representing a multi-way branch tree node.
+#[repr(C)]
+pub struct MtrNode {
+    _data: [u8; 0],
+    _marker: PhantomData<(*mut u8, PhantomPinned)>,
+}
+
 /// Type of the hook function.
 pub type DD_HOOK_FUNCTION = extern "C" fn(*mut DdManager, *const c_char, *mut c_void) -> c_int;
 
@@ -199,7 +213,7 @@ pub type DD_TIME_OUT_HANDLER = extern "C" fn(*mut DdManager, *mut c_void) -> c_v
 /// Complements a DD node by flipping the complement attribute of
 /// the pointer (the least significant bit).
 #[inline]
-pub const unsafe fn Cudd_Not(node: *mut DdNode) -> *mut DdNode {
+pub unsafe fn Cudd_Not(node: *mut DdNode) -> *mut DdNode {
     ((node as usize) ^ 01) as *mut DdNode
 }
 
@@ -207,24 +221,27 @@ pub const unsafe fn Cudd_Not(node: *mut DdNode) -> *mut DdNode {
 /// of the pointer if a condition is satisfied. The `condition`
 /// argument must be always either `1` or `0`.
 #[inline]
-pub const unsafe fn Cudd_NotCond(node: *mut DdNode, condition: c_int) -> *mut DdNode {
+pub unsafe fn Cudd_NotCond(node: *mut DdNode, condition: c_int) -> *mut DdNode {
     ((node as usize) ^ (condition as usize)) as *mut DdNode
 }
 
 /// Computes the regular version of a node pointer (i.e. without the complement
 /// bit set, regardless of its previous value).
-pub const unsafe fn Cudd_Regular(node: *mut DdNode) -> *mut DdNode {
+#[inline]
+pub unsafe fn Cudd_Regular(node: *mut DdNode) -> *mut DdNode {
     ((node as usize) & (01 as usize).not()) as *mut DdNode
 }
 
 /// Computes the complemented version of a node pointer (i.e. with a complement
 /// bit set, regardless of its previous value).
-pub const unsafe fn Cudd_Complement(node: *mut DdNode) -> *mut DdNode {
+#[inline]
+pub unsafe fn Cudd_Complement(node: *mut DdNode) -> *mut DdNode {
     ((node as usize) | 01) as *mut DdNode
 }
 
 /// Returns 1 if a pointer is complemented.
-pub const unsafe fn Cudd_IsComplement(node: *mut DdNode) -> c_int {
+#[inline]
+pub unsafe fn Cudd_IsComplement(node: *mut DdNode) -> c_int {
     ((node as usize) & 1) as c_int
 }
 
@@ -517,22 +534,39 @@ extern "C" {
     pub fn Cudd_SetNumberXovers(dd: *mut DdManager, numberXovers: c_int) -> c_void;
     pub fn Cudd_ReadOrderRandomization(dd: *mut DdManager) -> c_uint;
     pub fn Cudd_SetOrderRandomization(dd: *mut DdManager, factor: c_uint) -> c_void;
-    pub fn Cudd_ReadMemoryInUse(dd: *mut DdManager) -> c_ulong;
+    pub fn Cudd_ReadMemoryInUse(dd: *mut DdManager) -> size_t;
     pub fn Cudd_PrintInfo(dd: *mut DdManager, fp: *mut FILE) -> c_int;
     pub fn Cudd_ReadPeakNodeCount(dd: *mut DdManager) -> c_long;
     pub fn Cudd_ReadPeakLiveNodeCount(dd: *mut DdManager) -> c_int;
     pub fn Cudd_ReadNodeCount(dd: *mut DdManager) -> c_long;
     pub fn Cudd_zddReadNodeCount(dd: *mut DdManager) -> c_long;
-    //pub fn Cudd_AddHook(dd: *mut DdManager, f: c_DD_HFP, where: Cudd_HookType ) -> c_int;
-    //pub fn Cudd_RemoveHook(dd: *mut DdManager, f: c_DD_HFP, where: Cudd_HookType ) -> c_int;
-    //pub fn Cudd_IsInHook(dd: *mut DdManager, f: c_DD_HFP, where: Cudd_HookType ) -> c_int;
-    pub fn Cudd_StdPreReordHook(dd: *mut DdManager, str: *mut c_char, data: *mut c_void) -> c_int;
-    pub fn Cudd_StdPostReordHook(dd: *mut DdManager, str: *mut c_char, data: *mut c_void) -> c_int;
+    pub fn Cudd_AddHook(dd: *mut DdManager, f: DD_HOOK_FUNCTION, hook_type: Cudd_HookType)
+        -> c_int;
+    pub fn Cudd_RemoveHook(
+        dd: *mut DdManager,
+        f: DD_HOOK_FUNCTION,
+        hook_type: Cudd_HookType,
+    ) -> c_int;
+    pub fn Cudd_IsInHook(
+        dd: *mut DdManager,
+        f: DD_HOOK_FUNCTION,
+        hook_type: Cudd_HookType,
+    ) -> c_int;
+    pub fn Cudd_StdPreReordHook(dd: *mut DdManager, str: *const c_char, data: *mut c_void)
+        -> c_int;
+    pub fn Cudd_StdPostReordHook(
+        dd: *mut DdManager,
+        str: *const c_char,
+        data: *mut c_void,
+    ) -> c_int;
     pub fn Cudd_EnableReorderingReporting(dd: *mut DdManager) -> c_int;
     pub fn Cudd_DisableReorderingReporting(dd: *mut DdManager) -> c_int;
     pub fn Cudd_ReorderingReporting(dd: *mut DdManager) -> c_int;
-    pub fn Cudd_PrintGroupedOrder(dd: *mut DdManager, str: *mut c_char, data: *mut c_void)
-        -> c_int;
+    pub fn Cudd_PrintGroupedOrder(
+        dd: *mut DdManager,
+        str: *const c_char,
+        data: *mut c_void,
+    ) -> c_int;
     pub fn Cudd_EnableOrderingMonitoring(dd: *mut DdManager) -> c_int;
     pub fn Cudd_DisableOrderingMonitoring(dd: *mut DdManager) -> c_int;
     pub fn Cudd_OrderingMonitoring(dd: *mut DdManager) -> c_int;
@@ -540,6 +574,9 @@ extern "C" {
     pub fn Cudd_ReadApplicationHook(dd: *mut DdManager) -> *mut c_void;
     pub fn Cudd_ReadErrorCode(dd: *mut DdManager) -> Cudd_ErrorType;
     pub fn Cudd_ClearErrorCode(dd: *mut DdManager) -> c_void;
+    pub fn Cudd_InstallOutOfMemoryHandler(
+        newHandler: DD_OUT_OF_MEMORY_FUNCTION,
+    ) -> DD_OUT_OF_MEMORY_FUNCTION;
     pub fn Cudd_ReadStdout(dd: *mut DdManager) -> *mut FILE;
     pub fn Cudd_SetStdout(dd: *mut DdManager, fp: *mut FILE) -> c_void;
     pub fn Cudd_ReadStderr(dd: *mut DdManager) -> *mut FILE;
@@ -549,8 +586,8 @@ extern "C" {
     pub fn Cudd_ReadSwapSteps(dd: *mut DdManager) -> c_double;
     pub fn Cudd_ReadMaxLive(dd: *mut DdManager) -> c_uint;
     pub fn Cudd_SetMaxLive(dd: *mut DdManager, maxLive: c_uint) -> c_void;
-    pub fn Cudd_ReadMaxMemory(dd: *mut DdManager) -> c_ulong;
-    pub fn Cudd_SetMaxMemory(dd: *mut DdManager, maxMemory: c_ulong) -> c_void;
+    pub fn Cudd_ReadMaxMemory(dd: *mut DdManager) -> size_t;
+    pub fn Cudd_SetMaxMemory(dd: *mut DdManager, maxMemory: size_t) -> size_t;
     pub fn Cudd_bddBindVar(dd: *mut DdManager, index: c_int) -> c_int;
     pub fn Cudd_bddUnbindVar(dd: *mut DdManager, index: c_int) -> c_int;
     pub fn Cudd_bddVarIsBound(dd: *mut DdManager, index: c_int) -> c_int;
@@ -569,8 +606,12 @@ extern "C" {
         f: *mut DdNode,
         cube: *mut DdNode,
     ) -> *mut DdNode;
-    //M1: extern DdNode * Cudd_addApply (DdManager *dd, DdNode * (*)(DdManager *, DdNode **, DdNode **), DdNode *f, DdNode *g);
-
+    pub fn Cudd_addApply(
+        dd: *mut DdManager,
+        op: DD_APPLY_OPERATOR,
+        f: *mut DdNode,
+        g: *mut DdNode,
+    ) -> *mut DdNode;
     pub fn Cudd_addPlus(
         dd: *mut DdManager,
         f: *mut *mut DdNode,
@@ -641,8 +682,11 @@ extern "C" {
         f: *mut *mut DdNode,
         g: *mut *mut DdNode,
     ) -> *mut DdNode;
-    //M1: extern DdNode * Cudd_addMonadicApply (DdManager * dd, DdNode * (*op)(DdManager *, DdNode *), DdNode * f);
-
+    pub fn Cudd_addMonadicApply(
+        dd: *mut DdManager,
+        op: DD_MONADIC_APPLY_OPERATOR,
+        f: *mut DdNode,
+    ) -> *mut DdNode;
     pub fn Cudd_addLog(dd: *mut DdManager, f: *mut DdNode) -> *mut DdNode;
     pub fn Cudd_addFindMax(dd: *mut DdManager, f: *mut DdNode) -> *mut DdNode;
     pub fn Cudd_addFindMin(dd: *mut DdManager, f: *mut DdNode) -> *mut DdNode;
@@ -696,26 +740,89 @@ extern "C" {
         limit: c_uint,
     ) -> *mut DdNode;
     pub fn Cudd_ApaNumberOfDigits(binaryDigits: c_int) -> c_int;
-    /*
-    pub fn Cudd_NewApaNumber(digits: c_int) -> c_DdApaNumber;
-    pub fn Cudd_ApaCopy(digits: c_int, source: c_DdApaNumber, dest: c_DdApaNumber) -> c_void;
-    pub fn Cudd_ApaAdd(digits: c_int, a: c_DdApaNumber, b: c_DdApaNumber, sum: c_DdApaNumber) -> c_DdApaDigit;
-    pub fn Cudd_ApaSubtract(digits: c_int, a: c_DdApaNumber, b: c_DdApaNumber, diff: c_DdApaNumber) -> c_DdApaDigit;
-    pub fn Cudd_ApaShortDivision(digits: c_int, dividend: c_DdApaNumber, divisor: c_DdApaDigit, quotient: c_DdApaNumber) -> c_DdApaDigit;
-    pub fn Cudd_ApaIntDivision(digits: c_int, dividend: c_DdApaNumber, divisor: c_uint, quotient: c_DdApaNumber) -> c_uint;
-    pub fn Cudd_ApaShiftRight(digits: c_int, in: c_DdApaDigit, a: c_DdApaNumber, b: c_DdApaNumber) -> c_void;
-    pub fn Cudd_ApaSetToLiteral(digits: c_int, number: c_DdApaNumber, literal: c_DdApaDigit) -> c_void;
-    pub fn Cudd_ApaPowerOfTwo(digits: c_int, number: c_DdApaNumber, power: c_int) -> c_void;
-    pub fn Cudd_ApaCompare(digitsFirst: c_int, first: c_DdApaNumber, digitsSecond: c_int, second: c_DdApaNumber) -> c_int;
-    pub fn Cudd_ApaCompareRatios(digitsFirst: c_int, firstNum: c_DdApaNumber, firstDen: c_uint, digitsSecond: c_int, secondNum: c_DdApaNumber, secondDen: c_uint) -> c_int;
-    pub fn Cudd_ApaPrintHex(fp: *mut FILE, digits: c_int, number: c_DdApaNumber) -> c_int;
-    pub fn Cudd_ApaPrintDecimal(fp: *mut FILE, digits: c_int, number: c_DdApaNumber) -> c_int;
-    pub fn Cudd_ApaPrintExponential(fp: *mut FILE, digits: c_int, number: c_DdApaNumber, precision: c_int) -> c_int;
-    pub fn Cudd_ApaCountMinterm(manager: *mut DdManager, node: *mut DdNode, nvars: c_int, digits: *mut c_int) -> c_DdApaNumber;
-    pub fn Cudd_ApaPrintMinterm(fp: *mut FILE, dd: *mut DdManager, node: *mut DdNode, nvars: c_int) -> c_int;
-    pub fn Cudd_ApaPrintMintermExp(fp: *mut FILE, dd: *mut DdManager, node: *mut DdNode, nvars: c_int, precision: c_int) -> c_int;
-    pub fn Cudd_ApaPrintDensity(fp: *mut FILE, dd: *mut DdManager, node: *mut DdNode, nvars: c_int) -> c_int;
-    */
+    pub fn Cudd_NewApaNumber(digits: c_int) -> DdApaNumber;
+    pub fn Cudd_FreeApaNumber(number: DdApaNumber) -> c_void;
+    pub fn Cudd_ApaCopy(digits: c_int, source: DdConstApaNumber, dest: DdApaNumber) -> c_void;
+    pub fn Cudd_ApaAdd(
+        digits: c_int,
+        a: DdConstApaNumber,
+        b: DdConstApaNumber,
+        sum: DdApaNumber,
+    ) -> DdApaDigit;
+    pub fn Cudd_ApaSubtract(
+        digits: c_int,
+        a: DdConstApaNumber,
+        b: DdConstApaNumber,
+        diff: DdApaNumber,
+    ) -> DdApaDigit;
+    pub fn Cudd_ApaShortDivision(
+        digits: c_int,
+        dividend: DdConstApaNumber,
+        divisor: DdApaDigit,
+        quotient: DdApaNumber,
+    ) -> DdApaDigit;
+    pub fn Cudd_ApaIntDivision(
+        digits: c_int,
+        dividend: DdConstApaNumber,
+        divisor: c_uint,
+        quotient: DdApaNumber,
+    ) -> c_uint;
+    pub fn Cudd_ApaShiftRight(
+        digits: c_int,
+        input: DdApaDigit,
+        a: DdConstApaNumber,
+        b: DdApaNumber,
+    ) -> c_void;
+    pub fn Cudd_ApaSetToLiteral(digits: c_int, number: DdApaNumber, literal: DdApaDigit) -> c_void;
+    pub fn Cudd_ApaPowerOfTwo(digits: c_int, number: DdApaNumber, power: c_int) -> c_void;
+    pub fn Cudd_ApaCompare(
+        digitsFirst: c_int,
+        first: DdConstApaNumber,
+        digitsSecond: c_int,
+        second: DdConstApaNumber,
+    ) -> c_int;
+    pub fn Cudd_ApaCompareRatios(
+        digitsFirst: c_int,
+        firstNum: DdConstApaNumber,
+        firstDen: c_uint,
+        digitsSecond: c_int,
+        secondNum: DdConstApaNumber,
+        secondDen: c_uint,
+    ) -> c_int;
+    pub fn Cudd_ApaPrintHex(fp: *mut FILE, digits: c_int, number: DdConstApaNumber) -> c_int;
+    pub fn Cudd_ApaPrintDecimal(fp: *mut FILE, digits: c_int, number: DdConstApaNumber) -> c_int;
+    pub fn Cudd_ApaStringDecimal(digits: c_int, number: DdConstApaNumber) -> *mut c_char;
+    pub fn Cudd_ApaPrintExponential(
+        fp: *mut FILE,
+        digits: c_int,
+        number: DdConstApaNumber,
+        precision: c_int,
+    ) -> c_int;
+    pub fn Cudd_ApaCountMinterm(
+        manager: *const DdManager,
+        node: *mut DdNode,
+        nvars: c_int,
+        digits: *mut c_int,
+    ) -> DdApaNumber;
+    pub fn Cudd_ApaPrintMinterm(
+        fp: *mut FILE,
+        dd: *const DdManager,
+        node: *mut DdNode,
+        nvars: c_int,
+    ) -> c_int;
+    pub fn Cudd_ApaPrintMintermExp(
+        fp: *mut FILE,
+        dd: *const DdManager,
+        node: *mut DdNode,
+        nvars: c_int,
+        precision: c_int,
+    ) -> c_int;
+    pub fn Cudd_ApaPrintDensity(
+        fp: *mut FILE,
+        dd: *mut DdManager,
+        node: *mut DdNode,
+        nvars: c_int,
+    ) -> c_int;
     pub fn Cudd_UnderApprox(
         dd: *mut DdManager,
         f: *mut DdNode,
@@ -802,6 +909,13 @@ extern "C" {
         g: *mut DdNode,
         h: *mut DdNode,
     ) -> *mut DdNode;
+    pub fn Cudd_bddIteLimit(
+        dd: *mut DdManager,
+        f: *mut DdNode,
+        g: *mut DdNode,
+        h: *mut DdNode,
+        limit: c_uint,
+    ) -> *mut DdNode;
     pub fn Cudd_bddIteConstant(
         dd: *mut DdManager,
         f: *mut DdNode,
@@ -877,6 +991,12 @@ extern "C" {
     ) -> *mut DdNode;
     pub fn Cudd_Cofactor(dd: *mut DdManager, f: *mut DdNode, g: *mut DdNode) -> *mut DdNode;
     pub fn Cudd_CheckCube(dd: *mut DdManager, g: *mut DdNode) -> c_int;
+    pub fn Cudd_VarsAreSymmetric(
+        dd: *mut DdManager,
+        f: *mut DdNode,
+        index1: c_int,
+        index2: c_int,
+    ) -> c_int;
     pub fn Cudd_bddCompose(
         dd: *mut DdManager,
         f: *mut DdNode,
@@ -1004,8 +1124,8 @@ extern "C" {
     pub fn Cudd_ReadIthClause(
         tlc: *mut DdTlcInfo,
         i: c_int,
-        var1: *mut DdHalfWord,
-        var2: *mut DdHalfWord,
+        var1: *mut c_uint,
+        var2: *mut c_uint,
         phase1: *mut c_int,
         phase2: *mut c_int,
     ) -> c_int;
@@ -1075,6 +1195,7 @@ extern "C" {
     pub fn Cudd_bddCharToVect(dd: *mut DdManager, f: *mut DdNode) -> *mut *mut DdNode;
     pub fn Cudd_bddLICompaction(dd: *mut DdManager, f: *mut DdNode, c: *mut DdNode) -> *mut DdNode;
     pub fn Cudd_bddSqueeze(dd: *mut DdManager, l: *mut DdNode, u: *mut DdNode) -> *mut DdNode;
+    pub fn Cudd_bddInterpolate(dd: *mut DdManager, l: *mut DdNode, u: *mut DdNode) -> *mut DdNode;
     pub fn Cudd_bddMinimize(dd: *mut DdManager, f: *mut DdNode, c: *mut DdNode) -> *mut DdNode;
     pub fn Cudd_SubsetCompress(
         dd: *mut DdManager,
@@ -1088,12 +1209,6 @@ extern "C" {
         nvars: c_int,
         threshold: c_int,
     ) -> *mut DdNode;
-    pub fn Cudd_MakeTreeNode(
-        dd: *mut DdManager,
-        low: c_uint,
-        size: c_uint,
-        ttype: c_uint,
-    ) -> *mut MtrNode;
     pub fn Cudd_addHarwell(
         fp: *mut FILE,
         dd: *mut DdManager,
@@ -1117,7 +1232,7 @@ extern "C" {
         numVarsZ: c_uint,
         numSlots: c_uint,
         cacheSize: c_uint,
-        maxMemory: c_ulong,
+        maxMemory: size_t,
     ) -> *mut DdManager;
     pub fn Cudd_Quit(unique: *mut DdManager) -> c_void;
     pub fn Cudd_PrintLinear(table: *mut DdManager) -> c_int;
@@ -1154,8 +1269,16 @@ extern "C" {
         r: *mut DdNode,
         c: *mut DdNode,
     ) -> *mut DdNode;
-    //M1: extern DdNode * Cudd_PrioritySelect (DdManager *dd, DdNode *R, DdNode **x, DdNode **y, DdNode **z, DdNode *Pi, int n, DdNode * (*)(DdManager *, int, DdNode **, DdNode **, DdNode **));
-
+    pub fn Cudd_PrioritySelect(
+        dd: *mut DdManager,
+        R: *mut DdNode,
+        x: *mut *mut DdNode,
+        y: *mut *mut DdNode,
+        z: *mut *mut DdNode,
+        Pi: *mut DdNode,
+        n: c_int,
+        PiFunc: DD_PRIORITY_FUNCTION,
+    ) -> *mut DdNode;
     pub fn Cudd_Xgty(
         dd: *mut DdManager,
         N: c_int,
@@ -1380,6 +1503,7 @@ extern "C" {
     pub fn Cudd_PrintMinterm(manager: *mut DdManager, node: *mut DdNode) -> c_int;
     pub fn Cudd_bddPrintCover(dd: *mut DdManager, l: *mut DdNode, u: *mut DdNode) -> c_int;
     pub fn Cudd_PrintDebug(dd: *mut DdManager, f: *mut DdNode, n: c_int, pr: c_int) -> c_int;
+    pub fn Cudd_PrintSummary(dd: *mut DdManager, f: *mut DdNode, n: c_int, mode: c_int) -> c_int;
     pub fn Cudd_DagSize(node: *mut DdNode) -> c_int;
     pub fn Cudd_EstimateCofactor(
         dd: *mut DdManager,
@@ -1390,7 +1514,23 @@ extern "C" {
     pub fn Cudd_EstimateCofactorSimple(node: *mut DdNode, i: c_int) -> c_int;
     pub fn Cudd_SharingSize(nodeArray: *mut *mut DdNode, n: c_int) -> c_int;
     pub fn Cudd_CountMinterm(manager: *mut DdManager, node: *mut DdNode, nvars: c_int) -> c_double;
-    //pub fn Cudd_EpdCountMinterm(manager: *mut DdManager, node: *mut DdNode, nvars: c_int, epd: *mut c_EpDouble) -> c_int;
+    pub fn Cudd_EpdCountMinterm(
+        manager: *const DdManager,
+        node: *mut DdNode,
+        nvars: c_int,
+        epd: *mut EpDouble,
+    ) -> c_int;
+    /*
+    Type f128 cannot be safely represented in Rust at the moment, and 128-bit bytes don't have
+    a stable ABI format anyway.
+
+    pub fn Cudd_LdblCountMinterm(
+        manager: *const DdManager,
+        node: *mut DdNode,
+        nvars: c_int,
+    ) -> f128;
+    */
+    pub fn Cudd_EpdPrintMinterm(dd: *const DdManager, node: *mut DdNode, nvars: c_int) -> c_int;
     pub fn Cudd_CountPath(node: *mut DdNode) -> c_double;
     pub fn Cudd_CountPathsToNonZero(node: *mut DdNode) -> c_double;
     pub fn Cudd_SupportIndices(
@@ -1486,10 +1626,11 @@ extern "C" {
     pub fn Cudd_IndicesToCube(dd: *mut DdManager, array: *mut c_int, n: c_int) -> *mut DdNode;
     pub fn Cudd_PrintVersion(fp: *mut FILE) -> c_void;
     pub fn Cudd_AverageDistance(dd: *mut DdManager) -> c_double;
-    //No match: extern long Cudd_Random (void);
-    pub fn Cudd_Srandom(seed: c_long) -> c_void;
+    pub fn Cudd_Random(dd: *mut DdManager) -> i32;
+    pub fn Cudd_Srandom(dd: *mut DdManager, seed: i32) -> c_void;
     pub fn Cudd_Density(dd: *mut DdManager, f: *mut DdNode, nvars: c_int) -> c_double;
-    pub fn Cudd_OutOfMem(size: c_long) -> c_void;
+    pub fn Cudd_OutOfMem(size: size_t) -> c_void;
+    pub fn Cudd_OutOfMemSilent(size: size_t) -> c_void;
     pub fn Cudd_zddCount(zdd: *mut DdManager, P: *mut DdNode) -> c_int;
     pub fn Cudd_zddCountDouble(zdd: *mut DdManager, P: *mut DdNode) -> c_double;
     pub fn Cudd_zddProduct(dd: *mut DdManager, f: *mut DdNode, g: *mut DdNode) -> *mut DdNode;
@@ -1499,12 +1640,6 @@ extern "C" {
     pub fn Cudd_zddWeakDivF(dd: *mut DdManager, f: *mut DdNode, g: *mut DdNode) -> *mut DdNode;
     pub fn Cudd_zddDivideF(dd: *mut DdManager, f: *mut DdNode, g: *mut DdNode) -> *mut DdNode;
     pub fn Cudd_zddComplement(dd: *mut DdManager, node: *mut DdNode) -> *mut DdNode;
-    pub fn Cudd_MakeZddTreeNode(
-        dd: *mut DdManager,
-        low: c_uint,
-        size: c_uint,
-        ttype: c_uint,
-    ) -> *mut MtrNode;
     pub fn Cudd_zddIsop(
         dd: *mut DdManager,
         L: *mut DdNode,
@@ -1576,4 +1711,22 @@ extern "C" {
     pub fn Cudd_bddSetVarToBeUngrouped(dd: *mut DdManager, index: c_int) -> c_int;
     pub fn Cudd_bddIsVarToBeUngrouped(dd: *mut DdManager, index: c_int) -> c_int;
     pub fn Cudd_bddIsVarHardGroup(dd: *mut DdManager, index: c_int) -> c_int;
+    pub fn Cudd_ReadTree(dd: *mut DdManager) -> *mut MtrNode;
+    pub fn Cudd_SetTree(dd: *mut DdManager, tree: *mut MtrNode) -> c_void;
+    pub fn Cudd_FreeTree(dd: *mut DdManager) -> c_void;
+    pub fn Cudd_ReadZddTree(dd: *mut DdManager) -> *mut MtrNode;
+    pub fn Cudd_SetZddTree(dd: *mut DdManager, tree: *mut MtrNode) -> c_void;
+    pub fn Cudd_FreeZddTree(dd: *mut DdManager) -> c_void;
+    pub fn Cudd_MakeTreeNode(
+        dd: *mut DdManager,
+        low: c_uint,
+        size: c_uint,
+        mtr_type: c_uint,
+    ) -> *mut MtrNode;
+    pub fn Cudd_MakeZddTreeNode(
+        dd: *mut DdManager,
+        low: c_uint,
+        size: c_uint,
+        mtr_type: c_uint,
+    ) -> *mut MtrNode;
 }
